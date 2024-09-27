@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/sstream.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 
 Value::Value(int val) { set_int(val); }
 
@@ -26,8 +27,14 @@ Value::Value(float val) { set_float(val); }
 
 Value::Value(bool val) { set_boolean(val); }
 
-Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
+Value::Value(const char *s, int len /*= 0*/)
+{
+  switch (len) {
+    case -1: set_date(s); break;
 
+    default: set_string(s, len);
+  }
+}
 Value::Value(const Value &other)
 {
   this->attr_type_ = other.attr_type_;
@@ -117,6 +124,10 @@ void Value::set_data(char *data, int length)
       value_.int_value_ = *(int *)data;
       length_           = length;
     } break;
+    case AttrType::DATES: {
+      value_.int_value_ = *(int *)data;
+      length_           = length;
+    } break;
     case AttrType::FLOATS: {
       value_.float_value_ = *(float *)data;
       length_             = length;
@@ -175,11 +186,42 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
 }
 
+bool check_date(int y, int m, int d)
+{
+  static int mon[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  bool       leap  = (y % 400 == 0 || (y % 100 && y % 4 == 0));
+  return y > 0 && (m > 0) && (m <= 12) && (d > 0) && (d <= ((m == 2 && leap) ? 1 : 0) + mon[m]);
+}
+
+void Value::set_date(const char *s)
+{
+  attr_type_ = AttrType::DATES;
+  int y, m, d;
+  sscanf(s, "%d-%d-%d", &y, &m, &d);
+  if (!check_date(y, m, d)) {
+    attr_type_ = AttrType::CHARS;
+  }
+  int dv            = y * 10000 + m * 100 + d;
+  value_.int_value_ = dv;
+  length_           = 4;
+}
+
+void Value::set_date(int val)
+{
+  reset();
+  attr_type_        = AttrType::DATES;
+  value_.int_value_ = val;
+  length_           = sizeof(val);
+}
+
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {
     case AttrType::INTS: {
       set_int(value.get_int());
+    } break;
+    case AttrType::DATES: {
+      set_date(value.get_int());
     } break;
     case AttrType::FLOATS: {
       set_float(value.get_float());
@@ -229,7 +271,10 @@ string Value::to_string() const
   return res;
 }
 
-int Value::compare(const Value &other) const { return DataType::type_instance(this->attr_type_)->compare(*this, other); }
+int Value::compare(const Value &other) const
+{
+  return DataType::type_instance(this->attr_type_)->compare(*this, other);
+}
 
 int Value::get_int() const
 {
@@ -243,6 +288,9 @@ int Value::get_int() const
       }
     }
     case AttrType::INTS: {
+      return value_.int_value_;
+    }
+    case AttrType::DATES: {
       return value_.int_value_;
     }
     case AttrType::FLOATS: {
