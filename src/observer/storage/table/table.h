@@ -53,7 +53,8 @@ public:
    */
   RC create(Db *db, int32_t table_id, const char *path, const char *name, const char *base_dir,
       span<const AttrInfoSqlNode> attributes, StorageFormat storage_format);
-
+  
+  RC drop();
   /**
    * 打开一个表
    * @param meta_file 保存表元数据的文件完整路径
@@ -105,6 +106,8 @@ public:
   const char *name() const;
 
   Db *db() const { return db_; }
+
+  DiskBufferPool *data_buffer_pool() { return data_buffer_pool_; }
 
   const TableMeta &table_meta() const;
 

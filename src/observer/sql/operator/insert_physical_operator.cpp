@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/insert_physical_operator.h"
 #include "sql/stmt/insert_stmt.h"
+#include "storage/db/db.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
 
@@ -36,6 +37,7 @@ RC InsertPhysicalOperator::open(Trx *trx)
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
   }
+  table_->data_buffer_pool()->flush_all_pages();
   return rc;
 }
 

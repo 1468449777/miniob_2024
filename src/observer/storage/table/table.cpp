@@ -127,6 +127,22 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   return rc;
 }
 
+RC Table::drop()
+{
+  RC rc = RC::SUCCESS;
+  // 删除索引文件
+  for (auto &idx : indexes_) {
+    std::remove(table_index_file(base_dir_.c_str(), table_meta_.name(), idx->index_meta().name()).c_str());
+  }
+  // 删除数据文件
+  std::remove(table_data_file(base_dir_.c_str(), table_meta_.name()).c_str());
+  // 删除元文件
+  std::remove(table_meta_file(base_dir_.c_str(), table_meta_.name()).c_str());
+
+  LOG_INFO("Successfully drop table %s", base_dir_.c_str());
+  return rc;
+}
+
 RC Table::open(Db *db, const char *meta_file, const char *base_dir)
 {
   // 加载元数据文件
@@ -272,7 +288,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
 
   for (int i = 0; i < value_num && OB_SUCC(rc); i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
-    const Value &    value = values[i];
+    const Value     &value = values[i];
     if (field->type() != value.attr_type()) {
       Value real_value;
       rc = Value::cast_to(value, field->type(), real_value);
