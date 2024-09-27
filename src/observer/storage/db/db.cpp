@@ -166,7 +166,7 @@ RC Db::drop_table(const char *table_name)
   RC rc = RC::SUCCESS;
   // check table_name
   if (opened_tables_.count(table_name) == 0) {
-    return rc;
+    return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
   Table *table = find_table(table_name);
@@ -174,7 +174,7 @@ RC Db::drop_table(const char *table_name)
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to create table %s.", table_name);
     return rc;
-    
+
   }
   opened_tables_.erase(opened_tables_.find(table_name));
 
