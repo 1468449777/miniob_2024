@@ -135,10 +135,11 @@ RC Table::drop()
     std::remove(table_index_file(base_dir_.c_str(), table_meta_.name(), idx->index_meta().name()).c_str());
   }
   // 删除数据文件
-  std::remove(table_data_file(base_dir_.c_str(), table_meta_.name()).c_str());
-  // 删除元文件
   BufferPoolManager &bpm = db_->buffer_pool_manager();
-  bpm.close_file(table_meta_file(base_dir_.c_str(), table_meta_.name()).c_str());
+  bpm.close_file(table_data_file(base_dir_.c_str(), table_meta_.name()).c_str());
+  std::remove(table_data_file(base_dir_.c_str(), table_meta_.name()).c_str());
+
+  // 删除元文件
   std::remove(table_meta_file(base_dir_.c_str(), table_meta_.name()).c_str());
 
   LOG_INFO("Successfully drop table %s", base_dir_.c_str());

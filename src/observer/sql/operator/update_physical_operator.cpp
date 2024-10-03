@@ -46,7 +46,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     Record   &record    = row_tuple->record();
     Record    new_record(record);
     for (auto &it : values_) {
-      memcpy(new_record.data() + it.first->offset(), it.second.data(), it.second.length());
+      memcpy(new_record.data() + it.first->offset(), it.second.data(), it.second.length() + 1);
     }
     rc = trx_->delete_record(table_, record);
     rc = trx_->insert_record(table_, new_record);
