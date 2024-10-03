@@ -63,6 +63,10 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 
   std::vector<pair<const FieldMeta *, Value>> values;
   auto updatingfieldMeta = table->table_meta().field(update.attribute_name.c_str());
+   
+  if(updatingfieldMeta==nullptr){
+    return RC::SCHEMA_FIELD_NOT_EXIST;
+  }
 
   // 检查更新的值类型是否匹配，目前只是简单做等于比较。
   if (update.value.attr_type() != updatingfieldMeta->type()) {
