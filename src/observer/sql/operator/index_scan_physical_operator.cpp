@@ -111,12 +111,13 @@ RC IndexScanPhysicalOperator::close()
 
 Tuple *IndexScanPhysicalOperator::current_tuple()
 {
-  // 拷贝是为了聚合、排序等操作的tuple的收集
+  // 拷贝是为了排序等操作的tuple的收集,如果不用排序应该可以不用拷贝，这里全部拷贝
   Record   *copied_record = new Record(current_record_);
   RowTuple *tuple         = new RowTuple();
-    copied_tuples_.push_back(tuple);
-  // 这个get_record得到的记录是自己管理内存的，owner为true，也就是相当于copy了一份
-  table_->get_record(current_record_.rid(), *copied_record);
+  copied_tuples_.push_back(tuple);
+
+  // owner为true，copy了一份
+  copied_record->copy_data(current_record_.data(), current_record_.len());
 
   tuple->set_record(copied_record);
   tuple->set_schema(table_, table_->table_meta().field_metas());
