@@ -169,6 +169,7 @@ public:
       delete spec;
     }
     speces_.clear();
+
   }
 
   void set_record(Record *record) { this->record_ = record; }
@@ -395,6 +396,12 @@ class JoinedTuple : public Tuple
 public:
   JoinedTuple()          = default;
   virtual ~JoinedTuple() = default;
+
+  JoinedTuple(JoinedTuple &joined_tuple)
+  {
+    left_  = joined_tuple.left_;
+    right_ = joined_tuple.right_;
+  }
 
   void set_left(Tuple *left) { left_ = left; }
   void set_right(Tuple *right) { right_ = right; }

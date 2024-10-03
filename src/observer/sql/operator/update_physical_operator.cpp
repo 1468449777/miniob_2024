@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/update_physical_operator.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
@@ -45,9 +46,15 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
     Record   &record    = row_tuple->record();
     Record    new_record(record);
+
     for (auto &it : values_) {
-      memcpy(new_record.data() + it.first->offset(), it.second.data(), it.second.length() + 1);
+      size_t copy_len = it.second.length();
+      if (it.second.attr_type() == AttrType::CHARS) {
+        ++copy_len;
+      }
+      memcpy(new_record.data() + it.first->offset(), it.second.data(), copy_len);
     }
+    // TODO: 需要做unique处理, 否则影响唯一性约束
     rc = trx_->delete_record(table_, record);
     rc = trx_->insert_record(table_, new_record);
     if (rc != RC::SUCCESS) {

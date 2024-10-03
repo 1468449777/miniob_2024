@@ -18,18 +18,26 @@ NestedLoopJoinPhysicalOperator::NestedLoopJoinPhysicalOperator() {}
 
 RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
 {
-  if (children_.size() != 2) {
+ if (children_.size() != 2) {
     LOG_WARN("nlj operator should have 2 children");
     return RC::INTERNAL;
   }
 
-  RC rc         = RC::SUCCESS;
-  left_         = children_[0].get();
-  right_        = children_[1].get();
+  RC rc = RC::SUCCESS;
+  left_ = children_[0].get();
+  right_ = children_[1].get();
   right_closed_ = true;
-  round_done_   = true;
+  round_done_ = true;
 
-  rc   = left_->open(trx);
+ 
+  rc= right_->open(trx);
+  while((rc=right_->next())==RC::SUCCESS){
+     righttuples.push_back(right_->current_tuple());
+  }
+  if(rc!=RC::RECORD_EOF){
+     return RC::ERROR;
+  } 
+  rc = left_->open(trx);
   trx_ = trx;
   return rc;
 }
@@ -70,19 +78,17 @@ RC NestedLoopJoinPhysicalOperator::close()
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to close left oper. rc=%s", strrc(rc));
   }
-
-  if (!right_closed_) {
-    rc = right_->close();
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to close right oper. rc=%s", strrc(rc));
-    } else {
-      right_closed_ = true;
-    }
-  }
+  rc = right_->close();
+  righttuples.clear();
+  rightindex = -1;
   return rc;
 }
 
-Tuple *NestedLoopJoinPhysicalOperator::current_tuple() { return &joined_tuple_; }
+Tuple *NestedLoopJoinPhysicalOperator::current_tuple()
+{
+  JoinedTuple *tuple = new JoinedTuple(joined_tuple_);
+  return tuple;
+}
 
 RC NestedLoopJoinPhysicalOperator::left_next()
 {
@@ -102,32 +108,24 @@ RC NestedLoopJoinPhysicalOperator::right_next()
   RC rc = RC::SUCCESS;
   if (round_done_) {
     if (!right_closed_) {
-      rc = right_->close();
-
       right_closed_ = true;
       if (rc != RC::SUCCESS) {
         return rc;
       }
     }
 
-    rc = right_->open(trx_);
-    if (rc != RC::SUCCESS) {
-      return rc;
-    }
     right_closed_ = false;
-
-    round_done_ = false;
+    rightindex    = -1;
+    round_done_   = false;
   }
 
-  rc = right_->next();
-  if (rc != RC::SUCCESS) {
-    if (rc == RC::RECORD_EOF) {
-      round_done_ = true;
-    }
-    return rc;
+  rightindex++;
+  if (rightindex == righttuples.size()) {
+    round_done_ = true;
+    return RC::RECORD_EOF;
   }
 
-  right_tuple_ = right_->current_tuple();
+  right_tuple_ = righttuples[rightindex];
   joined_tuple_.set_right(right_tuple_);
   return rc;
 }

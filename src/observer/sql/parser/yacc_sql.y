@@ -69,12 +69,14 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         CREATE
         DROP
         GROUP
+        ORDER
         TABLE
         TABLES
         INDEX
         CALC
         SELECT
         DESC
+        ASC
         SHOW
         SYNC
         INSERT
@@ -119,11 +121,14 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   ConditionSqlNode *                         condition;
   Value *                                    value;
   enum CompOp                                comp;
+  enum OrderByType                           order_by_type;
   RelAttrSqlNode *                           rel_attr;
   std::vector<AttrInfoSqlNode> *             attr_infos;
   AttrInfoSqlNode *                          attr_info;
   Expression *                               expression;
   std::vector<std::unique_ptr<Expression>> * expression_list;
+  OrderByInfo *                              order_by_expression_list;
+  OrderByInfo *                              order_by_info;
   std::vector<Value> *                       value_list;
   std::vector<ConditionSqlNode> *            condition_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
@@ -156,8 +161,12 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <string>              storage_format
 %type <relation_list>       rel_list
 %type <expression>          expression
+%type <order_by_info>       order_by_expression_list
+%type <order_by_info>       order_by_info
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
+%type <order_by_type>       order_by_type
+
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
@@ -456,7 +465,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM rel_list where group_by
+    SELECT expression_list FROM rel_list where group_by  order_by_info
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -478,6 +487,13 @@ select_stmt:        /*  select 语句的语法解析树*/
         $$->selection.group_by.swap(*$6);
         delete $6;
       }
+
+      if ($7 != nullptr) {
+        $$->selection.order_by.order_by_attrs.swap($7->order_by_attrs);
+        $$->selection.order_by.order_by_types.swap($7->order_by_types);
+        delete $7;
+      }
+
     }
     ;
 calc_stmt:
@@ -672,6 +688,58 @@ group_by:
       $$ = nullptr;
     }
     ;
+
+
+order_by_info:
+      /* empty */
+      {
+        $$ = nullptr;
+      }
+    | ORDER BY order_by_expression_list
+      { 
+        $$ = $3;
+        std::reverse($$->order_by_attrs.begin(),$$->order_by_attrs.end());
+        std::reverse($$->order_by_types.begin(),$$->order_by_types.end());
+      }
+      ;
+  
+order_by_expression_list:
+    expression order_by_type
+    {
+      $$ = new OrderByInfo();
+      $$->order_by_attrs.emplace_back($1);
+      $$->order_by_types.push_back($2);
+    }
+    | expression order_by_type COMMA order_by_expression_list
+    {
+      if ($4 != nullptr) {
+        $$ = $4;
+      } else {
+        $$ = new OrderByInfo();
+      }
+      $$->order_by_attrs.emplace_back($1);
+      $$->order_by_types.push_back($2);
+    }
+    ;
+
+order_by_type:
+      /* empty */
+      {
+        $$ = ASC_SORT;
+      }
+    | ASC
+      { 
+        $$ = ASC_SORT;
+      } 
+    | DESC
+      { 
+        $$ = DESC_SORT;
+      } 
+    ;
+
+
+
+
 load_data_stmt:
     LOAD DATA INFILE SSS INTO TABLE ID 
     {

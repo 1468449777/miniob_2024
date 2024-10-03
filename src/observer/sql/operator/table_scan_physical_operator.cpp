@@ -14,6 +14,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/table_scan_physical_operator.h"
 #include "event/sql_debug.h"
+#include "sql/expr/tuple.h"
+#include "storage/record/record.h"
 #include "storage/table/table.h"
 
 using namespace std;
@@ -35,7 +37,7 @@ RC TableScanPhysicalOperator::next()
   bool filter_result = false;
   while (OB_SUCC(rc = record_scanner_.next(current_record_))) {
     LOG_TRACE("got a record. rid=%s", current_record_.rid().to_string().c_str());
-    
+
     tuple_.set_record(&current_record_);
     rc = filter(tuple_, filter_result);
     if (rc != RC::SUCCESS) {
@@ -53,12 +55,28 @@ RC TableScanPhysicalOperator::next()
   return rc;
 }
 
-RC TableScanPhysicalOperator::close() { return record_scanner_.close_scan(); }
+RC TableScanPhysicalOperator::close()
+{
+  // for (auto tuple : copied_tuples_) {
+  //   delete tuple;
+  // }
+  // copied_tuples_.clear();
+
+  return record_scanner_.close_scan();
+}
 
 Tuple *TableScanPhysicalOperator::current_tuple()
 {
-  tuple_.set_record(&current_record_);
-  return &tuple_;
+  // 拷贝是为了聚合、排序等操作的tuple的收集
+  Record   *copied_record = new Record(current_record_);
+  RowTuple *tuple         = new RowTuple();
+
+  // 这个get_record得到的记录是自己管理内存的，owner为true，也就是相当于copy了一份
+  table_->get_record(current_record_.rid(), *copied_record);
+
+  tuple->set_record(copied_record);
+  tuple->set_schema(table_, table_->table_meta().field_metas());
+  return tuple;
 }
 
 string TableScanPhysicalOperator::param() const { return table_->name(); }
