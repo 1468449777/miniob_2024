@@ -49,7 +49,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
     for (auto &it : values_) {
       size_t copy_len = it.second.length();
-      if (it.second.attr_type() == AttrType::CHARS) {
+      if (it.second.attr_type() == AttrType::CHARS && copy_len<it.first->len()) {
         ++copy_len;
       }
       memcpy(new_record.data() + it.first->offset(), it.second.data(), copy_len);
