@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/tuple.h"
 #include "sql/operator/physical_operator.h"
 #include "storage/record/record_manager.h"
+#include <vector>
 
 /**
  * @brief 索引扫描物理算子
@@ -63,4 +64,6 @@ private:
   bool  right_inclusive_ = false;
 
   std::vector<std::unique_ptr<Expression>> predicates_;
+
+  std::vector<RowTuple*> copied_tuples_;
 };

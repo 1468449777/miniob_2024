@@ -56,11 +56,12 @@ RC TableScanPhysicalOperator::next()
 }
 
 RC TableScanPhysicalOperator::close()
-{
-  // for (auto tuple : copied_tuples_) {
-  //   delete tuple;
-  // }
-  // copied_tuples_.clear();
+{ 
+  // 我已经修改了join的逻辑，每张表只会open一次，并在树顶部的算子close时，递归close，所有将内存回收放在这里。index_scan 同理
+  for (auto tuple : copied_tuples_) {
+    delete tuple;
+  }
+  copied_tuples_.clear();
 
   return record_scanner_.close_scan();
 }
@@ -70,6 +71,7 @@ Tuple *TableScanPhysicalOperator::current_tuple()
   // 拷贝是为了聚合、排序等操作的tuple的收集
   Record   *copied_record = new Record(current_record_);
   RowTuple *tuple         = new RowTuple();
+  copied_tuples_.push_back(tuple);
 
   // 这个get_record得到的记录是自己管理内存的，owner为true，也就是相当于copy了一份
   table_->get_record(current_record_.rid(), *copied_record);
