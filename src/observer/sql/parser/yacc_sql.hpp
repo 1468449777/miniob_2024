@@ -139,8 +139,10 @@ union YYSTYPE
   char *                                     string;
   int                                        number;
   float                                      floats;
+  std::vector<UpdateValueNode> *             update_values;
+  UpdateValueNode *                          update_value;
 
-#line 144 "yacc_sql.hpp"
+#line 146 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

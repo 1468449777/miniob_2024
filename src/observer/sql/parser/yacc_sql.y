@@ -136,6 +136,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   char *                                     string;
   int                                        number;
   float                                      floats;
+  std::vector<UpdateValueNode> *             update_values;
+  UpdateValueNode *                          update_value;
 }
 
 %token <number> NUMBER
@@ -166,6 +168,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
 %type <order_by_type>       order_by_type
+%type <update_values>        update_values
+%type <update_value>         update_value
 
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
@@ -450,20 +454,52 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     }
     ;
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where 
+    UPDATE ID SET  update_value update_values where 
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
-      $$->update.attribute_name = $4;
-      $$->update.value = *$6;
-      if ($7 != nullptr) {
-        $$->update.conditions.swap(*$7);
-        delete $7;
+      
+      if($5 != nullptr){
+        $$->update.update_values.swap(*$5);
+        delete $5;
+      }
+      
+
+      $$->update.update_values.push_back(*$4);
+
+
+      if ($6 != nullptr) {
+        $$->update.conditions.swap(*$6);
+        delete $6;
       }
       free($2);
-      free($4);
     }
     ;
+
+update_values:
+        {
+          $$ =nullptr;
+        }     |
+      COMMA update_value update_values{
+        if($3==nullptr){
+          $$= new std::vector<UpdateValueNode>;
+        }
+        else{
+          $$=$3;
+        }
+        $$->emplace_back(*$2);
+      };
+
+update_value:
+    ID EQ value{
+      UpdateValueNode *updatevalue =new UpdateValueNode();
+      updatevalue->isvalue=1;
+      updatevalue->attribute_name = $1;
+      updatevalue->value = *$3;
+      $$ = updatevalue;
+      delete($3);
+    };
+
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT expression_list FROM rel_list where group_by  order_by_info
     {

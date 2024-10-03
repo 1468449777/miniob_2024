@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/field/field_meta.h"
 #include <memory>
+#include <utility>
 
 UpdateStmt::UpdateStmt(
     Table *table, std::vector<pair<const FieldMeta *, Value>> values, int value_amount, FilterStmt *filter_stmt)
@@ -62,26 +63,27 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   }
 
   std::vector<pair<const FieldMeta *, Value>> values;
-  auto updatingfieldMeta = table->table_meta().field(update.attribute_name.c_str());
-   
-  if(updatingfieldMeta==nullptr){
-    return RC::SCHEMA_FIELD_NOT_EXIST;
-  }
 
-  // 检查更新的值类型是否匹配，目前只是简单做等于比较。
-  if (update.value.attr_type() != updatingfieldMeta->type()) {
-    Value result_value;
-    // cast 操作目前未实现，后续根据需要进行补充，这里的update 的逻辑已经完善了
-    if (OB_FAIL(update.value.cast_to(update.value, updatingfieldMeta->type(), result_value))) {
-      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+  for (int i = 0; i < update.update_values.size(); i++) {
+    auto updatingfieldMeta = table->table_meta().field(update.update_values[i].attribute_name.c_str());
+
+    // 检查列的合法性
+    if (updatingfieldMeta == nullptr) {
+      return RC::SCHEMA_FIELD_NOT_EXIST;
     }
-  }
-  
-  // 检查列的合法性
-  if (updatingfieldMeta) {
-    values.emplace_back(updatingfieldMeta, update.value);
-  } else {
-    return RC::SCHEMA_FIELD_NOT_EXIST;
+
+    Value result_value = update.update_values[i].value;
+    // 检查更新的值类型是否匹配，目前只是简单做等于比较。
+    if (update.update_values[i].value.attr_type() != updatingfieldMeta->type()) {
+
+      // cast 操作目前未实现，后续根据需要进行补充，这里的update 的逻辑已经完善了
+      if (OB_FAIL(update.update_values[i].value.cast_to(
+              update.update_values[i].value, updatingfieldMeta->type(), result_value))) {
+        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      }
+    }
+
+    values.push_back(std::make_pair(updatingfieldMeta, result_value));
   }
 
   stmt = new UpdateStmt(table, values, 1, filter_stmt);

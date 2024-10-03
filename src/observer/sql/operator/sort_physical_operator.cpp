@@ -27,7 +27,7 @@ SortPhysicalOperator::SortPhysicalOperator(
 {}
 
 inline bool compare(const Tuple *x, const Tuple *y, std::vector<std::unique_ptr<Expression>> &order_by_exprs,
-    std::vector<OrderByType> order_type)
+    std::vector<OrderByType> &order_type)
 {
   int count = 0;
   for (const auto &expression : order_by_exprs) {
@@ -45,9 +45,7 @@ inline bool compare(const Tuple *x, const Tuple *y, std::vector<std::unique_ptr<
       if (order_type[count] == ASC_SORT) {
         return cmp_result < 0;  // 升序时，x < y 返回 true
       }
-      if (order_type[count] == DESC_SORT) {
-        return cmp_result > 0;  // 降序时，x > y 返回 true
-      }
+      return cmp_result > 0;  // 降序时，x > y 返回 true
     }
     // 如果这个字段相等，继续比较下一个字段
     count++;
