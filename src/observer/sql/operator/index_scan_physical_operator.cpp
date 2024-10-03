@@ -101,6 +101,7 @@ RC IndexScanPhysicalOperator::next()
 RC IndexScanPhysicalOperator::close()
 {
   for (auto tuple : copied_tuples_) {
+    delete &tuple->record();
     delete tuple;
   }
   copied_tuples_.clear();

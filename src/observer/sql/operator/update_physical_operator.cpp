@@ -48,7 +48,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     Record    new_record(record);
 
     for (auto &it : values_) {
-      size_t copy_len = it.second.length();
+      int copy_len = it.second.length();
       if (it.second.attr_type() == AttrType::CHARS && copy_len<it.first->len()) {
         ++copy_len;
       }

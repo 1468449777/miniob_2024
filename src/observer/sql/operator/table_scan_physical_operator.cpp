@@ -59,6 +59,7 @@ RC TableScanPhysicalOperator::close()
 { 
   // 我已经修改了join的逻辑，每张表只会open一次，并在树顶部的算子close时，递归close，所有将内存回收放在这里。index_scan 同理
   for (auto tuple : copied_tuples_) {
+    delete &tuple->record();
     delete tuple;
   }
   copied_tuples_.clear();
