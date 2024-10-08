@@ -11,6 +11,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/lang/sstream.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "common/type/integer_type.h"
 #include "common/value.h"
 
@@ -73,5 +74,16 @@ RC IntegerType::to_string(const Value &val, string &result) const
   stringstream ss;
   ss << val.value_.int_value_;
   result = ss.str();
+  return RC::SUCCESS;
+}
+
+RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
+{
+  if(type != AttrType::FLOATS){
+    return RC::UNSUPPORTED;
+  }
+
+  float float_value = (float)(val.get_int());
+  result.set_float(float_value); 
   return RC::SUCCESS;
 }

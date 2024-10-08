@@ -114,6 +114,11 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         LE
         GE
         NE
+        SUM
+        AVG
+        MAX
+        MIN
+        COUNT
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -134,6 +139,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   std::vector<RelAttrSqlNode> *              rel_attr_list;
   std::vector<std::string> *                 relation_list;
   char *                                     string;
+  const char *                               const_string;
   int                                        number;
   float                                      floats;
   std::vector<UpdateValueNode> *             update_values;
@@ -153,6 +159,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <value>               value
 %type <number>              number
 %type <string>              relation
+%type <const_string>        aggregate_type
 %type <comp>                comp_op
 %type <rel_attr>            rel_attr
 %type <attr_infos>          attr_def_list
@@ -591,9 +598,29 @@ expression:
     | '*' {
       $$ = new StarExpr();
     }
+    | aggregate_type LBRACE expression RBRACE{
+       $$ = new UnboundAggregateExpr($1, $3);
+       $$->set_name(token_name(sql_string, &@$));
+    }
     // your code here
     ;
 
+aggregate_type:
+    SUM{
+      $$ = "sum";
+    }
+  | MAX{
+      $$ = "max";
+    }
+  | MIN{
+      $$ = "min";
+    }
+  | AVG{
+      $$ = "avg";
+    }
+  | COUNT{
+      $$ = "count";
+    };
 rel_attr:
     ID {
       $$ = new RelAttrSqlNode;
@@ -722,6 +749,10 @@ group_by:
     /* empty */
     {
       $$ = nullptr;
+    }
+    | GROUP BY expression_list
+    {
+      $$ = $3;
     }
     ;
 
