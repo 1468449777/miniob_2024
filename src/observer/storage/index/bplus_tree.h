@@ -179,6 +179,7 @@ struct IndexFileHeader
   int32_t  attr_length;        ///< 键值的长度
   int32_t  key_length;         ///< attr length + sizeof(RID)
   AttrType attr_type;          ///< 键值的类型
+  int32_t  unique;             ///< 是否唯一
 
   const string to_string() const
   {
@@ -189,6 +190,7 @@ struct IndexFileHeader
        << "attr_type:" << attr_type_to_string(attr_type) << ","
        << "root_page:" << root_page << ","
        << "internal_max_size:" << internal_max_size << ","
+       << "unique:" << unique << ","
        << "leaf_max_size:" << leaf_max_size << ";";
 
     return ss.str();
@@ -459,9 +461,9 @@ public:
    * @param internal_max_size 内部节点最大大小
    * @param leaf_max_size 叶子节点最大大小
    */
-  RC create(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name, AttrType attr_type, int attr_length,
+  RC create(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name, AttrType attr_type, int attr_length, int unqiue,
       int internal_max_size = -1, int leaf_max_size = -1);
-  RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool, AttrType attr_type, int attr_length,
+  RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool, AttrType attr_type, int attr_length, int unique,
       int internal_max_size = -1, int leaf_max_size = -1);
 
   /**

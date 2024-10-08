@@ -799,6 +799,7 @@ RC BplusTreeHandler::create(LogHandler &log_handler,
                             const char *file_name, 
                             AttrType attr_type, 
                             int attr_length, 
+                            int unique,
                             int internal_max_size /* = -1*/,
                             int leaf_max_size /* = -1 */)
 {
@@ -832,6 +833,7 @@ RC BplusTreeHandler::create(LogHandler &log_handler,
             DiskBufferPool &buffer_pool,
             AttrType attr_type,
             int attr_length,
+            int unique,
             int internal_max_size /* = -1 */,
             int leaf_max_size /* = -1 */)
 {
@@ -870,6 +872,7 @@ RC BplusTreeHandler::create(LogHandler &log_handler,
   file_header->attr_type         = attr_type;
   file_header->internal_max_size = internal_max_size;
   file_header->leaf_max_size     = leaf_max_size;
+  file_header->unique            = unique;
   file_header->root_page         = BP_INVALID_PAGE_NUM;
 
   // 取消记录日志的原因请参考下面的sync调用的地方。

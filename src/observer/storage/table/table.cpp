@@ -392,7 +392,7 @@ RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_
   BplusTreeIndex *index      = new BplusTreeIndex();
   string          index_file = table_index_file(base_dir_.c_str(), name(), index_name);
 
-  rc = index->create(this, index_file.c_str(), new_index_meta, *field_meta);
+  rc = index->create(this, index_file.c_str(), new_index_meta, *field_meta, unique);
   if (rc != RC::SUCCESS) {
     delete index;
     LOG_ERROR("Failed to create bplus tree index. file name=%s, rc=%d:%s", index_file.c_str(), rc, strrc(rc));
