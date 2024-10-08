@@ -91,3 +91,11 @@ RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
   result.set_float(float_value);
   return RC::SUCCESS;
 }
+
+int IntegerType::cast_cost(AttrType type) 
+  {
+    if (type == AttrType::FLOATS) {
+      return 1;
+    }
+    return INT32_MAX;
+  }

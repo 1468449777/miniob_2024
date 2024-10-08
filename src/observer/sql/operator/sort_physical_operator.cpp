@@ -39,19 +39,11 @@ inline bool compare(const Tuple *x, const Tuple *y, std::vector<std::unique_ptr<
     expression->get_value(*y, value_y);
     
     if (value_x.is_null()) {
-      if (order_type[count] == ASC_SORT) {
-        return false;  // 升序时， null 排在后面
-      } else {
-        return true;
-      }
+        return true;  
     }
 
     if (value_y.is_null()) {
-      if (order_type[count] == ASC_SORT) {
-        return true;  // 升序时， null 排在后面
-      } else {
         return false;
-      }
     }
 
     // 比较x和y的值
