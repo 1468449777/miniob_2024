@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "common/type/attr_type.h"
+#include <cstdint>
 
 Value::Value(int val) { set_int(val); }
 
@@ -31,6 +32,8 @@ Value::Value(const char *s, int len /*= 0*/)
 {
   switch (len) {
     case -1: set_date(s); break;
+
+    case -2: set_null(); break;
 
     default: set_string(s, len);
   }
@@ -136,6 +139,7 @@ void Value::set_data(char *data, int length)
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
     } break;
+    case AttrType::NULLS:  // 暂时不用做什么
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -206,6 +210,14 @@ void Value::set_date(const char *s)
   length_           = 4;
 }
 
+void Value::set_null()
+{ 
+  reset();
+  attr_type_ = AttrType::NULLS;
+  value_.int_value_ = INT32_MAX;
+  length_           = 4;
+}
+
 void Value::set_date(int val)
 {
   reset();
@@ -231,6 +243,9 @@ void Value::set_value(const Value &value)
     } break;
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
+    } break;
+    case AttrType::NULLS: {
+      set_null();
     } break;
     default: {
       ASSERT(false, "got an invalid value type");
@@ -299,6 +314,10 @@ int Value::get_int() const
     case AttrType::BOOLEANS: {
       return (int)(value_.bool_value_);
     }
+    case AttrType::NULLS: {
+      LOG_WARN("try to get null int. type=%d", attr_type_);
+      return 0;
+    }    
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return 0;

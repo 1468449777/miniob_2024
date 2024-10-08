@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include "common/type/data_type.h"
 #include "common/type/date_type.h"
+#include "common/type/null_type.h"
 #include <cstdint>
 
 /**
@@ -37,6 +38,7 @@ public:
   friend class BooleanType;
   friend class CharType;
   friend class DateType;
+  friend class NullType;
 
   Value() = default;
 
@@ -92,6 +94,7 @@ public:
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
   void set_value(const Value &value);
   void set_boolean(bool val);
+  void set_null();
 
   string to_string() const;
 
@@ -101,6 +104,8 @@ public:
 
   int      length() const { return length_; }
   AttrType attr_type() const { return attr_type_; }
+
+  bool is_null() const { return AttrType::NULLS == attr_type_; }
 
 public:
   /**

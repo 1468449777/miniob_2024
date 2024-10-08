@@ -12,9 +12,13 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/type/char_type.h"
 #include "common/value.h"
+#include <cstdint>
 
 int CharType::compare(const Value &left, const Value &right) const
 {
+  if (right.attr_type() == AttrType::NULLS) {
+    return INT32_MAX;
+  }
   ASSERT(left.attr_type() == AttrType::CHARS && right.attr_type() == AttrType::CHARS, "invalid type");
   return common::compare_string(
       (void *)left.value_.pointer_value_, left.length_, (void *)right.value_.pointer_value_, right.length_);

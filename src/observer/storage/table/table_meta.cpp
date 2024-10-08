@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/algorithm.h"
 #include "common/log/log.h"
 #include "common/global_context.h"
+#include "common/type/attr_type.h"
 #include "storage/table/table_meta.h"
 #include "storage/trx/trx.h"
 #include "json/json.h"
@@ -64,7 +65,7 @@ RC TableMeta::init(int32_t table_id, const char *name, const std::vector<FieldMe
   if (trx_fields != nullptr) {
     trx_fields_ = *trx_fields;
 
-    fields_.resize(attributes.size() + trx_fields->size());
+    fields_.resize(attributes.size() + trx_fields->size());  
     for (size_t i = 0; i < trx_fields->size(); i++) {
       const FieldMeta &field_meta = (*trx_fields)[i];
       fields_[i] = FieldMeta(field_meta.name(), field_meta.type(), field_offset, field_meta.len(), false /*visible*/, field_meta.field_id());
@@ -80,7 +81,7 @@ RC TableMeta::init(int32_t table_id, const char *name, const std::vector<FieldMe
     const AttrInfoSqlNode &attr_info = attributes[i];
     // `i` is the col_id of fields[i]
     rc = fields_[i + trx_field_num].init(
-      attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, true /*visible*/, i);
+      attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, true /*visible*/, i,attr_info.can_be_null);
     if (OB_FAIL(rc)) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name.c_str());
       return rc;
@@ -89,8 +90,8 @@ RC TableMeta::init(int32_t table_id, const char *name, const std::vector<FieldMe
     field_offset += attr_info.length;
   }
 
-  record_size_ = field_offset;
-
+  // record 记录增加，用于记录每个列是否为null，0代表非null
+  record_size_ = field_offset + attributes.size();
   table_id_ = table_id;
   name_     = name;
   storage_format_ = storage_format;

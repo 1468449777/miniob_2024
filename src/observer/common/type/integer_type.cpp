@@ -11,11 +11,15 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/lang/sstream.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "common/type/integer_type.h"
 #include "common/value.h"
 
 int IntegerType::compare(const Value &left, const Value &right) const
 {
+  if (right.attr_type() == AttrType::NULLS) {
+    return INT32_MAX;
+  }
   ASSERT(left.attr_type() == AttrType::INTS, "left type is not integer");
   ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS, "right type is not numeric");
   if (right.attr_type() == AttrType::INTS) {
@@ -25,6 +29,7 @@ int IntegerType::compare(const Value &left, const Value &right) const
     float right_val = right.get_float();
     return common::compare_float((void *)&left_val, (void *)&right_val);
   }
+
   return INT32_MAX;
 }
 
@@ -54,7 +59,7 @@ RC IntegerType::negative(const Value &val, Value &result) const
 
 RC IntegerType::set_value_from_str(Value &val, const string &data) const
 {
-  RC                rc = RC::SUCCESS;
+  RC           rc = RC::SUCCESS;
   stringstream deserialize_stream;
   deserialize_stream.clear();  // 清理stream的状态，防止多次解析出现异常
   deserialize_stream.str(data);
@@ -73,5 +78,16 @@ RC IntegerType::to_string(const Value &val, string &result) const
   stringstream ss;
   ss << val.value_.int_value_;
   result = ss.str();
+  return RC::SUCCESS;
+}
+
+RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
+{
+  if (type != AttrType::FLOATS) {
+    return RC::UNSUPPORTED;
+  }
+
+  float float_value = (float)(val.get_int());
+  result.set_float(float_value);
   return RC::SUCCESS;
 }

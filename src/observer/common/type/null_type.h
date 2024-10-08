@@ -13,24 +13,19 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/data_type.h"
 
 /**
- * @brief 整型类型
+ * @brief null类型
  * @ingroup DataType
  */
-class IntegerType : public DataType
+class NullType : public DataType
 {
 public:
-  IntegerType() : DataType(AttrType::INTS) {}
-  virtual ~IntegerType() {}
+  NullType() : DataType(AttrType::NULLS) {}
+  virtual ~NullType() {}
 
   int compare(const Value &left, const Value &right) const override;
 
-  RC add(const Value &left, const Value &right, Value &result) const override;
-  RC subtract(const Value &left, const Value &right, Value &result) const override;
-  RC multiply(const Value &left, const Value &right, Value &result) const override;
-  RC negative(const Value &val, Value &result) const override;
 
   RC set_value_from_str(Value &val, const string &data) const override;
 
   RC to_string(const Value &val, string &result) const override;
-  RC cast_to(const Value &val, AttrType type, Value &result) const override;
 };

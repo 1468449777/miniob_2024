@@ -73,12 +73,18 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     }
 
     Value result_value = update.update_values[i].value;
-    // 检查更新的值类型是否匹配，目前只是简单做等于比较。
+    // 检查更新的值类型是否匹配
     if (update.update_values[i].value.attr_type() != updatingfieldMeta->type()) {
+      // 若value为 null，检查是否可以为null
+      if (update.update_values[i].value.is_null()) {
+        if (!updatingfieldMeta->can_be_null()) {
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+      }
 
       // cast 操作目前未实现，后续根据需要进行补充，这里的update 的逻辑已经完善了
-      if (OB_FAIL(update.update_values[i].value.cast_to(
-              update.update_values[i].value, updatingfieldMeta->type(), result_value))) {
+      else if (OB_FAIL(update.update_values[i].value.cast_to(
+                   update.update_values[i].value, updatingfieldMeta->type(), result_value))) {
         return RC::SCHEMA_FIELD_TYPE_MISMATCH;
       }
     }

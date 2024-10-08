@@ -293,16 +293,21 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value     &value = values[i];
     if (field->type() != value.attr_type()) {
-      Value real_value;
-      rc = Value::cast_to(value, field->type(), real_value);
-      if (OB_FAIL(rc)) {
-        LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
+      if (value.is_null() && field->can_be_null()) {
+        rc = set_value_to_record(record_data, value, field, record_size);
+      } else {
+        Value real_value;
+        rc = Value::cast_to(value, field->type(), real_value);
+        if (OB_FAIL(rc)) {
+          LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
             table_meta_.name(), field->name(), value.to_string().c_str());
-        break;
+          break;
+        }
+        rc = set_value_to_record(record_data, real_value, field, record_size);
       }
-      rc = set_value_to_record(record_data, real_value, field);
+
     } else {
-      rc = set_value_to_record(record_data, value, field);
+      rc = set_value_to_record(record_data, value, field, record_size);
     }
   }
   if (OB_FAIL(rc)) {
@@ -315,8 +320,9 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   return RC::SUCCESS;
 }
 
-RC Table::set_value_to_record(char *record_data, const Value &value, const FieldMeta *field)
+RC Table::set_value_to_record(char *record_data, const Value &value, const FieldMeta *field, const int record_len)
 {
+
   size_t       copy_len = field->len();
   const size_t data_len = value.length();
   if (field->type() == AttrType::CHARS) {
@@ -325,6 +331,8 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
     }
   }
   memcpy(record_data + field->offset(), value.data(), copy_len);
+  bool is_null = value.is_null();
+  memcpy(record_data + record_len - field->field_id() - 1, &is_null, 1);
   return RC::SUCCESS;
 }
 

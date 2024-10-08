@@ -49,10 +49,12 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
     for (auto &it : values_) {
       int copy_len = it.second.length();
-      if (it.second.attr_type() == AttrType::CHARS && copy_len<it.first->len()) {
+      if (it.second.attr_type() == AttrType::CHARS && copy_len < it.first->len()) {
         ++copy_len;
       }
+      bool value_is_null = it.second.is_null();
       memcpy(new_record.data() + it.first->offset(), it.second.data(), copy_len);
+      memcpy(new_record.data() + new_record.len() - it.first->field_id() - 1, &value_is_null, 1); // 修改null标记位
     }
     // TODO: 需要做unique处理, 否则影响唯一性约束
     rc = trx_->delete_record(table_, record);
