@@ -38,24 +38,6 @@ inline bool compare(const Tuple *x, const Tuple *y, std::vector<std::unique_ptr<
     Value value_y;
     expression->get_value(*y, value_y);
 
-    if (value_x.is_null() && !value_y.is_null()) {
-      if (order_type[count] == ASC_SORT) {
-        return true;
-      }
-      return false;
-    }
-
-    if (value_y.is_null() && !value_x.is_null()) {
-      if (order_type[count] == ASC_SORT) {
-        return false;
-      }
-      return true;
-    }
-
-    if (value_y.is_null() && value_x.is_null()) {
-      return true;
-    }
-
     // 比较x和y的值
     int cmp_result = value_x.compare(value_y);
     if (cmp_result != 0) {
