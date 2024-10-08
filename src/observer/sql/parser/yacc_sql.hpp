@@ -63,53 +63,54 @@ extern int yydebug;
     TABLE = 264,                   /* TABLE  */
     TABLES = 265,                  /* TABLES  */
     INDEX = 266,                   /* INDEX  */
-    CALC = 267,                    /* CALC  */
-    SELECT = 268,                  /* SELECT  */
-    DESC = 269,                    /* DESC  */
-    ASC = 270,                     /* ASC  */
-    SHOW = 271,                    /* SHOW  */
-    SYNC = 272,                    /* SYNC  */
-    INSERT = 273,                  /* INSERT  */
-    DELETE = 274,                  /* DELETE  */
-    UPDATE = 275,                  /* UPDATE  */
-    LBRACE = 276,                  /* LBRACE  */
-    RBRACE = 277,                  /* RBRACE  */
-    COMMA = 278,                   /* COMMA  */
-    TRX_BEGIN = 279,               /* TRX_BEGIN  */
-    TRX_COMMIT = 280,              /* TRX_COMMIT  */
-    TRX_ROLLBACK = 281,            /* TRX_ROLLBACK  */
-    INT_T = 282,                   /* INT_T  */
-    STRING_T = 283,                /* STRING_T  */
-    FLOAT_T = 284,                 /* FLOAT_T  */
-    DATE_T = 285,                  /* DATE_T  */
-    HELP = 286,                    /* HELP  */
-    EXIT = 287,                    /* EXIT  */
-    DOT = 288,                     /* DOT  */
-    INTO = 289,                    /* INTO  */
-    VALUES = 290,                  /* VALUES  */
-    FROM = 291,                    /* FROM  */
-    WHERE = 292,                   /* WHERE  */
-    AND = 293,                     /* AND  */
-    SET = 294,                     /* SET  */
-    ON = 295,                      /* ON  */
-    LOAD = 296,                    /* LOAD  */
-    DATA = 297,                    /* DATA  */
-    INFILE = 298,                  /* INFILE  */
-    EXPLAIN = 299,                 /* EXPLAIN  */
-    STORAGE = 300,                 /* STORAGE  */
-    FORMAT = 301,                  /* FORMAT  */
-    EQ = 302,                      /* EQ  */
-    LT = 303,                      /* LT  */
-    GT = 304,                      /* GT  */
-    LE = 305,                      /* LE  */
-    GE = 306,                      /* GE  */
-    NE = 307,                      /* NE  */
-    NUMBER = 308,                  /* NUMBER  */
-    FLOAT = 309,                   /* FLOAT  */
-    ID = 310,                      /* ID  */
-    SSS = 311,                     /* SSS  */
-    DATE_STR = 312,                /* DATE_STR  */
-    UMINUS = 313                   /* UMINUS  */
+    UNIQUE = 267,                  /* UNIQUE  */
+    CALC = 268,                    /* CALC  */
+    SELECT = 269,                  /* SELECT  */
+    DESC = 270,                    /* DESC  */
+    ASC = 271,                     /* ASC  */
+    SHOW = 272,                    /* SHOW  */
+    SYNC = 273,                    /* SYNC  */
+    INSERT = 274,                  /* INSERT  */
+    DELETE = 275,                  /* DELETE  */
+    UPDATE = 276,                  /* UPDATE  */
+    LBRACE = 277,                  /* LBRACE  */
+    RBRACE = 278,                  /* RBRACE  */
+    COMMA = 279,                   /* COMMA  */
+    TRX_BEGIN = 280,               /* TRX_BEGIN  */
+    TRX_COMMIT = 281,              /* TRX_COMMIT  */
+    TRX_ROLLBACK = 282,            /* TRX_ROLLBACK  */
+    INT_T = 283,                   /* INT_T  */
+    STRING_T = 284,                /* STRING_T  */
+    FLOAT_T = 285,                 /* FLOAT_T  */
+    DATE_T = 286,                  /* DATE_T  */
+    HELP = 287,                    /* HELP  */
+    EXIT = 288,                    /* EXIT  */
+    DOT = 289,                     /* DOT  */
+    INTO = 290,                    /* INTO  */
+    VALUES = 291,                  /* VALUES  */
+    FROM = 292,                    /* FROM  */
+    WHERE = 293,                   /* WHERE  */
+    AND = 294,                     /* AND  */
+    SET = 295,                     /* SET  */
+    ON = 296,                      /* ON  */
+    LOAD = 297,                    /* LOAD  */
+    DATA = 298,                    /* DATA  */
+    INFILE = 299,                  /* INFILE  */
+    EXPLAIN = 300,                 /* EXPLAIN  */
+    STORAGE = 301,                 /* STORAGE  */
+    FORMAT = 302,                  /* FORMAT  */
+    EQ = 303,                      /* EQ  */
+    LT = 304,                      /* LT  */
+    GT = 305,                      /* GT  */
+    LE = 306,                      /* LE  */
+    GE = 307,                      /* GE  */
+    NE = 308,                      /* NE  */
+    NUMBER = 309,                  /* NUMBER  */
+    FLOAT = 310,                   /* FLOAT  */
+    ID = 311,                      /* ID  */
+    SSS = 312,                     /* SSS  */
+    DATE_STR = 313,                /* DATE_STR  */
+    UMINUS = 314                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -118,7 +119,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 119 "yacc_sql.y"
+#line 120 "yacc_sql.y"
 
   ParsedSqlNode *                            sql_node;
   ConditionSqlNode *                         condition;
@@ -142,7 +143,7 @@ union YYSTYPE
   std::vector<UpdateValueNode> *             update_values;
   UpdateValueNode *                          update_value;
 
-#line 146 "yacc_sql.hpp"
+#line 147 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
