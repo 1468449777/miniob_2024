@@ -130,6 +130,7 @@ COUNT                                   RETURN_TOKEN(COUNT);
 NOT                                     RETURN_TOKEN(NOT);
 NULLABLE                                RETURN_TOKEN(NULLABLE);
 IS                                      RETURN_TOKEN(IS);
+HAVING                                  RETURN_TOKEN(HAVING);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);
