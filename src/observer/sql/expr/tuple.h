@@ -169,7 +169,6 @@ public:
       delete spec;
     }
     speces_.clear();
-
   }
 
   void set_record(Record *record) { this->record_ = record; }
@@ -188,6 +187,12 @@ public:
 
   int cell_num() const override { return speces_.size(); }
 
+  inline bool cell_is_null(const Record &record, const FieldMeta *field_meta) const
+  { 
+    bool result = *(bool *)(record.data() + record.len() - field_meta->field_id() - 1);
+    return result;
+  }
+
   RC cell_at(int index, Value &cell) const override
   {
     if (index < 0 || index >= static_cast<int>(speces_.size())) {
@@ -197,8 +202,13 @@ public:
 
     FieldExpr       *field_expr = speces_[index];
     const FieldMeta *field_meta = field_expr->field().meta();
-    cell.set_type(field_meta->type());
-    cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+    if (cell_is_null(*record_, field_meta)) {
+      cell.set_null();
+    } else {
+      cell.set_type(field_meta->type());
+      cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+    }
+
     return RC::SUCCESS;
   }
 

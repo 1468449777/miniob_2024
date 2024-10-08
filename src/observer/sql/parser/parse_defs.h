@@ -51,6 +51,9 @@ enum CompOp
   LESS_THAN,    ///< "<"
   GREAT_EQUAL,  ///< ">="
   GREAT_THAN,   ///< ">"
+  IS_NULL,
+  IS_NOT,
+  LIKE,
   NO_OP
 };
 
@@ -63,6 +66,7 @@ enum OrderByType
   ASC_SORT,
   DESC_SORT
 };
+
 
 /**
  * @brief 表示一个条件比较
@@ -170,6 +174,7 @@ struct AttrInfoSqlNode
   AttrType    type;    ///< Type of attribute
   std::string name;    ///< Attribute name
   size_t      length;  ///< Length of attribute
+  bool        can_be_null;
 };
 
 /**

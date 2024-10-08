@@ -11,12 +11,16 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/lang/sstream.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "common/type/date_type.h"
 #include "common/value.h"
 #include <iomanip>
 
 int DateType::compare(const Value &left, const Value &right) const
 {
+  if (right.attr_type() == AttrType::NULLS) {
+    return INT32_MAX;
+  }
   ASSERT(left.attr_type() == AttrType::DATES, "left type is not dates");
   ASSERT(right.attr_type() == AttrType::DATES || right.attr_type() == AttrType::FLOATS, "right type is not dates");
 

@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include <common/log/log.h>
 #include <memory>
 
+#include "common/type/attr_type.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
 #include "sql/operator/update_logical_operator.h"
@@ -132,7 +133,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
 
     last_oper = &predicate_oper;
   }
-  
+
   unique_ptr<LogicalOperator> sort_oper;
   if (!select_stmt->order_by().order_by_attrs.empty()) {
     sort_oper = make_unique<SortLogicalOperator>(
@@ -219,7 +220,8 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
                                      ? static_cast<Expression *>(new FieldExpr(filter_obj_right.field))
                                      : static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
 
-    if (left->value_type() != right->value_type()) {
+    if (left->value_type() != right->value_type() && right->value_type() != AttrType::NULLS &&
+        left->value_type() != AttrType::NULLS) {
       auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
       auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
       if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {

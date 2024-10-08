@@ -15,32 +15,43 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/aggregator.h"
 #include "common/log/log.h"
 #include "common/type/attr_type.h"
+#include "common/type/null_type.h"
 #include "common/value.h"
 
 RC SumAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.attr_type() == AttrType::NULLS) {
     value_ = value;
     return RC::SUCCESS;
   }
 
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-
-  Value::add(value, value_, value_);
+  if (value.attr_type() != AttrType::NULLS) {
+    Value::add(value, value_, value_);
+  }
   return RC::SUCCESS;
 }
 
 RC SumAggregator::evaluate(Value &result)
 {
-  result = value_;
+  if (value_.is_null()) {
+    Value value(0);
+    result = value;
+  } else {
+    result = value_;
+  }
+
   return RC::SUCCESS;
 }
 
 RC MaxAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.attr_type() == AttrType::NULLS) {
     value_ = value;
+    return RC::SUCCESS;
+  }
+  if (value.attr_type() == AttrType::NULLS) {
     return RC::SUCCESS;
   }
 
@@ -61,14 +72,13 @@ RC MaxAggregator::evaluate(Value &result)
 
 RC MinAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.attr_type() == AttrType::NULLS) {
     value_ = value;
     return RC::SUCCESS;
   }
-
-  ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
-        attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-
+  if (value.attr_type() == AttrType::NULLS) {
+    return RC::SUCCESS;
+  }
   if (value.compare(value_) < 0) {
     value_ = value;
   }
@@ -88,8 +98,9 @@ RC CountAggregator::accumulate(const Value &value)
   }
 
   Value value_1(1);
-
-  value_.add(value_, value_1, value_);
+  if (value.attr_type() != AttrType::NULLS) {
+    value_.add(value_, value_1, value_);
+  }
   return RC::SUCCESS;
 }
 
@@ -101,22 +112,31 @@ RC CountAggregator::evaluate(Value &result)
 
 RC AvgAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.is_null()) {
     value_ = value;
-    count++;
+    if (!value_.is_null()) {
+      count++;
+    }
+
     return RC::SUCCESS;
   }
 
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-
-  Value::add(value, value_, value_);
-  count++;
+  if (value.attr_type() != AttrType::NULLS) {
+    Value::add(value, value_, value_);
+    count++;
+  }
   return RC::SUCCESS;
 }
 
 RC AvgAggregator::evaluate(Value &result)
 {
+  if (value_.is_null()) {
+    result = value_;
+    return RC::SUCCESS;
+  }
+
   if (value_.attr_type() == AttrType::INTS) {
     value_.cast_to(value_, AttrType::FLOATS, value_);
   }

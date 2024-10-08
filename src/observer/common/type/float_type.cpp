@@ -11,6 +11,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/lang/sstream.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "common/type/float_type.h"
 #include "common/value.h"
 #include "common/lang/limits.h"
@@ -18,8 +19,12 @@ See the Mulan PSL v2 for more details. */
 
 int FloatType::compare(const Value &left, const Value &right) const
 {
+  if (right.attr_type() == AttrType::NULLS) {
+    return INT32_MAX;
+  }
   ASSERT(left.attr_type() == AttrType::FLOATS, "left type is not integer");
-  ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS, "right type is not numeric");
+  ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS || right.attr_type() == AttrType::NULLS, "right type is not numeric");
+
   float left_val  = left.get_float();
   float right_val = right.get_float();
   return common::compare_float((void *)&left_val, (void *)&right_val);
@@ -61,7 +66,7 @@ RC FloatType::negative(const Value &val, Value &result) const
 
 RC FloatType::set_value_from_str(Value &val, const string &data) const
 {
-  RC                rc = RC::SUCCESS;
+  RC           rc = RC::SUCCESS;
   stringstream deserialize_stream;
   deserialize_stream.clear();
   deserialize_stream.str(data);
