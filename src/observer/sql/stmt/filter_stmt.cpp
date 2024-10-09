@@ -31,7 +31,7 @@ FilterStmt::~FilterStmt()
 }
 
 RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-     ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
+    ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt, std::vector<Table *> father_tables)
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
@@ -40,7 +40,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   for (int i = 0; i < condition_num; i++) {
     FilterUnit *filter_unit = nullptr;
 
-    rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
+    rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit, father_tables);
     if (rc != RC::SUCCESS) {
       delete tmp_stmt;
       LOG_WARN("failed to create filter unit. condition index=%d", i);
@@ -82,7 +82,7 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
 }
 
 RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    ConditionSqlNode &condition, FilterUnit *&filter_unit)
+    ConditionSqlNode &condition, FilterUnit *&filter_unit, std::vector<Table *> father_tables)
 {
   RC rc = RC::SUCCESS;
 
@@ -99,8 +99,12 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   for (auto &table : *tables) {
     binder_context.add_table(table.second);
   }
+
+  for (auto &table : father_tables) {
+    binder_context.add_table(table);
+  }
   ExpressionBinder expression_binder(binder_context);
-  
+
   // 处理左表达式
   rc = expression_binder.bind_expression(condition.left_expression.front(), bound_expressions);
   if (rc != RC::SUCCESS) {
@@ -112,7 +116,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   filter_unit->set_left(std::move(left_filter_obj));
   bound_expressions.clear();
 
-    // 处理右表达式
+  // 处理右表达式
   rc = expression_binder.bind_expression(condition.right_expression.front(), bound_expressions);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot find attr");

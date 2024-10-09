@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "common/rc.h"
+#include "sql/operator/father_tuple_logical_operator.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/physical_operator.h"
 
@@ -29,6 +30,7 @@ class JoinLogicalOperator;
 class CalcLogicalOperator;
 class GroupByLogicalOperator;
 class SortLogicalOperator;
+class FatherTupleLogicalOperator;
 
 /**
  * @brief 物理计划生成器
@@ -55,6 +57,7 @@ private:
   RC create_plan(ExplainLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   RC create_plan(JoinLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   RC create_plan(CalcLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
+  RC create_plan(FatherTupleLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   RC create_plan(GroupByLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   RC create_plan(SortLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   RC create_vec_plan(ProjectLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);

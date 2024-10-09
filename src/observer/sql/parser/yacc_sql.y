@@ -125,6 +125,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         IS
         HAVING
         IN
+        LIKE
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -184,7 +185,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <order_by_type>       order_by_type
 %type <update_values>        update_values
 %type <update_value>         update_value
-/* %type <sub_select>          sub_select */
+%type <sub_select>          sub_select 
 
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
@@ -670,11 +671,12 @@ expression:
     | '*' {
       $$ = new StarExpr();
     }
+
+
     | aggregate_type LBRACE expression RBRACE{
        $$ = new UnboundAggregateExpr($1, $3);
        $$->set_name(token_name(sql_string, &@$));
     }
-
     /* 下面两个仅仅是为了使结果返回failure，而不是failed to parse sql */
     | aggregate_type LBRACE  RBRACE{
        $$ = new UnboundAggregateExpr("Failure", nullptr);
@@ -684,7 +686,12 @@ expression:
        $$ = new UnboundAggregateExpr("Failure", nullptr);
        $$->set_name(token_name(sql_string, &@$));
     }
-    // your code here
+
+    | sub_select{
+      $$ = new UnboundSubSelectExpr($1);
+      $$->set_name(token_name(sql_string, &@$));
+
+    }
     ;
 
 aggregate_type:
@@ -786,6 +793,9 @@ comp_op:
     | NE { $$ = NOT_EQUAL; }
     | IS { $$ = IS_NULL;}
     | IS NOT { $$ = IS_NOT;}
+    | LIKE { $$ = LIKE_OP;}
+    | IN { $$ = IN_VALUELIST;}
+    | NOT IN { $$ = NOT_IN_VALUELIST;}
     ;
 
 // your code here
@@ -847,15 +857,15 @@ order_by_type:
         $$ = DESC_SORT;
       } 
     ;
-/*
+
 sub_select:
   LBRACE select_stmt RBRACE
   {
     $$ = new SelectSqlNode;
-    (*$$) = $2->SelectSqlNode;
+    (*$$) = std::move($2->selection);
     delete $2;
 
-  }*/
+  }
 
 
 load_data_stmt:

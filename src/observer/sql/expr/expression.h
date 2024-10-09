@@ -17,7 +17,10 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 #include <string>
 
+#include "common/type/attr_type.h"
 #include "common/value.h"
+#include "sql/parser/parse_defs.h"
+#include "sql/stmt/select_stmt.h"
 #include "storage/field/field.h"
 #include "sql/expr/aggregator.h"
 #include "storage/common/chunk.h"
@@ -39,6 +42,7 @@ enum class ExprType
   STAR,                 ///< 星号，表示所有字段
   UNBOUND_FIELD,        ///< 未绑定的字段，需要在resolver阶段解析为FieldExpr
   UNBOUND_AGGREGATION,  ///< 未绑定的聚合函数，需要在resolver阶段解析为AggregateExpr
+  UNBOUND_SUBSELECT,    ///< 未绑定的子查询
 
   FIELD,        ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
   VALUE,        ///< 常量值
@@ -47,6 +51,7 @@ enum class ExprType
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,   ///< 算术运算
   AGGREGATION,  ///< 聚合运算
+  SUBSELECT,    ///< 子查询
 };
 
 /**
@@ -468,3 +473,23 @@ private:
   Type                        aggregate_type_;
   std::unique_ptr<Expression> child_;
 };
+
+class UnboundSubSelectExpr : public Expression
+{
+
+public:
+  UnboundSubSelectExpr(SelectSqlNode *subselect) : subselect_(std::unique_ptr<SelectSqlNode>(subselect)) {}
+  virtual ~UnboundSubSelectExpr() = default;
+
+  ExprType type() const override { return ExprType::UNBOUND_SUBSELECT; }
+
+  AttrType value_type() const override { return AttrType::VALUESLISTS; }
+
+  RC get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }  // 这个无意义}
+
+  SelectSqlNode &sub_select_node() { return *subselect_; }
+
+private:
+  std::unique_ptr<SelectSqlNode> subselect_;
+};
+

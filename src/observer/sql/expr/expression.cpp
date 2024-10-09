@@ -12,12 +12,20 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2022/07/05.
 //
 
-#include "sql/expr/expression.h"
+#include "common/log/log.h"
+#include "common/rc.h"
 #include "common/type/attr_type.h"
+#include "common/value.h"
 #include "sql/expr/aggregator.h"
 #include "sql/expr/tuple.h"
 #include "sql/expr/arithmetic_operator.hpp"
+#include "sql/operator/logical_operator.h"
+#include "sql/optimizer/logical_plan_generator.h"
+#include "sql/optimizer/physical_plan_generator.h"
 #include "sql/parser/parse_defs.h"
+#include <cstdint>
+#include <memory>
+#include <vector>
 
 using namespace std;
 
@@ -126,19 +134,48 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   RC  rc         = RC::SUCCESS;
   int cmp_result = left.compare(right);
   result         = false;
+  // 这里写一些比较特殊的情况，谁是高手可以优化一下
+  if (left.attr_type() == AttrType::VALUESLISTS && left.get_valuelist()->size() != 1) {
+    if (left.get_valuelist()->size() > 1) {
+      result = false;
+      return RC::ERROR;  // 返回错误，而不只是过滤掉tuple
+    } else if (comp_ != NOT_IN_VALUELIST) {
+      result = false;  // 可能是子查询没有值
+      return RC::SUCCESS;
+    }
+  }
+  if (right.attr_type() == AttrType::VALUESLISTS && right.get_valuelist()->size() != 1) {
+
+    if (right.get_valuelist()->size() > 1) {
+      result = false;
+      return RC::ERROR;  // 返回错误，而不只是过滤掉tuple
+    } else if (comp_ != NOT_IN_VALUELIST) {
+      result = false;  // 可能是子查询没有值
+      return RC::SUCCESS;
+    }
+  }
+
   if (left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS) {
     if (comp_ != IS_NOT && comp_ != IS_NULL) {
       result = false;
       return rc;
     }
   }
+  if (cmp_result == INT32_MAX || cmp_result == -INT32_MAX) {
+    result = false;
+    return rc;
+  }
+
   switch (comp_) {
-    case EQUAL_TO: {
+    case EQUAL_TO:
+    // in 和 not in 的比较逻辑分别对应等于和不等于
+    case IN_VALUELIST: {
       result = (0 == cmp_result);
     } break;
     case LESS_EQUAL: {
       result = (cmp_result <= 0);
     } break;
+    case NOT_IN_VALUELIST:
     case NOT_EQUAL: {
       result = (cmp_result != 0);
     } break;
@@ -204,8 +241,37 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
   }
 
   bool bool_value = false;
+  switch (comp_) {
+    case IN_VALUELIST: {
+      if (right_value.attr_type() != AttrType::VALUESLISTS) {
+        return RC::UNSUPPORTED;
+      }
+      std::vector<Value> &values = *right_value.get_valuelist();
+      for (auto &val : values) {
+        rc = compare_value(left_value, val, bool_value);
+        if (bool_value) {
+          break;
+        }
+      }
+    } break;
+    case NOT_IN_VALUELIST: {
+      if (right_value.attr_type() != AttrType::VALUESLISTS) {
+        return RC::UNSUPPORTED;
+      }
+      std::vector<Value> &values = *right_value.get_valuelist();
+      if (values.empty()) {
+        bool_value = true;
+      }
+      for (auto &val : values) {
+        rc = compare_value(left_value, val, bool_value);
+        if (!bool_value) {
+          break;
+        }
+      }
+    } break;
+    default: rc = compare_value(left_value, right_value, bool_value);
+  }
 
-  rc = compare_value(left_value, right_value, bool_value);
   if (rc == RC::SUCCESS) {
     value.set_boolean(bool_value);
   }

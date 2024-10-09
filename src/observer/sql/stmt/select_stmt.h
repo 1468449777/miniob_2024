@@ -35,6 +35,7 @@ class SelectStmt : public Stmt
 {
 public:
   SelectStmt() = default;
+  SelectStmt(SelectStmt & other);
   ~SelectStmt() override;
 
   StmtType type() const override { return StmtType::SELECT; }

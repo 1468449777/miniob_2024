@@ -20,9 +20,9 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/data_type.h"
 #include "common/type/date_type.h"
 #include "common/type/null_type.h"
+#include "common/type/values_type.h"
 #include <cstdint>
 #include <vector>
-
 
 /**
  * @brief 属性的值
@@ -41,6 +41,7 @@ public:
   friend class CharType;
   friend class DateType;
   friend class NullType;
+  friend class ValuesType;
 
   Value() = default;
 
@@ -91,13 +92,13 @@ public:
     return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
   }
 
-  void set_type(AttrType type) { this->attr_type_ = type; }
-  void set_data(char *data, int length);
-  void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
-  void set_value(const Value &value);
-  void set_boolean(bool val);
-  void set_null();
-
+  void   set_type(AttrType type) { this->attr_type_ = type; }
+  void   set_data(char *data, int length);
+  void   set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
+  void   set_value(const Value &value);
+  void   set_boolean(bool val);
+  void   set_null();
+  void   set_valuelist();
   string to_string() const;
 
   int compare(const Value &other) const;
@@ -118,7 +119,8 @@ public:
   float  get_float() const;
   string get_string() const;
   bool   get_boolean() const;
-
+  std::vector<Value>* get_valuelist();
+  std::vector<Value>* get_valuelist() const;
 private:
   void set_int(int val);
   void set_float(float val);
@@ -133,11 +135,11 @@ private:
 
   union Val
   {
-    int32_t int_value_;  // text,date 类型由int32_t 表示
-    float   float_value_;
-    bool    bool_value_;
-    char   *pointer_value_;
-    std::vector<Value> *values; 
+    int32_t             int_value_;  // text,date 类型由int32_t 表示
+    float               float_value_;
+    bool                bool_value_;
+    char               *pointer_value_;
+    std::vector<Value> *values;
   } value_ = {.int_value_ = 0};
 
   /// 是否申请并占有内存, 目前对于 CHARS 类型 own_data_ 为true, 其余类型 own_data_ 为false

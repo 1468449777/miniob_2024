@@ -16,8 +16,12 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/log/log.h"
 #include "common/lang/string.h"
+#include "common/rc.h"
+#include "sql/expr/expression.h"
+#include "sql/expr//sub_select_expression.h"
 #include "sql/parser/expression_binder.h"
 #include "sql/expr/expression_iterator.h"
+#include "sql/stmt/select_stmt.h"
 
 using namespace std;
 using namespace common;
@@ -62,6 +66,10 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
 
     case ExprType::UNBOUND_AGGREGATION: {
       return bind_aggregate_expression(expr, bound_expressions);
+    } break;
+
+    case ExprType::UNBOUND_SUBSELECT: {
+      return bind_subselect_expression(expr, bound_expressions);
     } break;
 
     case ExprType::FIELD: {
@@ -386,7 +394,7 @@ RC check_aggregate_expression(AggregateExpr &expression)
   }
 
   // 子表达式中不能再包含聚合表达式
-  function<RC(std::unique_ptr<Expression>&)> check_aggregate_expr = [&](unique_ptr<Expression> &expr) -> RC {
+  function<RC(std::unique_ptr<Expression> &)> check_aggregate_expr = [&](unique_ptr<Expression> &expr) -> RC {
     RC rc = RC::SUCCESS;
     if (expr->type() == ExprType::AGGREGATION) {
       LOG_WARN("aggregate expression cannot be nested");
@@ -408,10 +416,10 @@ RC ExpressionBinder::bind_aggregate_expression(
     return RC::SUCCESS;
   }
 
-  auto unbound_aggregate_expr = static_cast<UnboundAggregateExpr *>(expr.get());
-  const char *aggregate_name = unbound_aggregate_expr->aggregate_name();
+  auto                unbound_aggregate_expr = static_cast<UnboundAggregateExpr *>(expr.get());
+  const char         *aggregate_name         = unbound_aggregate_expr->aggregate_name();
   AggregateExpr::Type aggregate_type;
-  RC rc = AggregateExpr::type_from_string(aggregate_name, aggregate_type);
+  RC                  rc = AggregateExpr::type_from_string(aggregate_name, aggregate_type);
   if (OB_FAIL(rc)) {
     LOG_WARN("invalid aggregate name: %s", aggregate_name);
     return rc;
@@ -448,4 +456,31 @@ RC ExpressionBinder::bind_aggregate_expression(
 
   bound_expressions.emplace_back(std::move(aggregate_expr));
   return RC::SUCCESS;
+}
+
+RC ExpressionBinder::bind_subselect_expression(
+    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+{
+  if (nullptr == expr) {
+    return RC::SUCCESS;
+  }
+
+  auto unbound_subselect_expr = static_cast<UnboundSubSelectExpr *>(expr.get());
+
+  Stmt *select_stmt;
+
+  for (auto &it : context_.query_tables()) {
+    unbound_subselect_expr->sub_select_node().father_relations.emplace_back(it->name());          // 将父亲的表 加入到子查询的 表中，以便子查询检查 过滤条件的有效性
+  }
+
+  RC rc =
+      SelectStmt::create(context_.query_tables().front()->db(), unbound_subselect_expr->sub_select_node(), select_stmt);
+  if (OB_FAIL(rc)) {
+    return rc;
+  }
+
+  auto subselect_expr = make_unique<SubSelectExpr>(static_cast<SelectStmt *>(select_stmt));
+  subselect_expr->set_name("subselect");
+  bound_expressions.emplace_back(std::move(subselect_expr));
+  return rc;
 }

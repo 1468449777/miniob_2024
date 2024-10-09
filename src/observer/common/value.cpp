@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/type/attr_type.h"
 #include <cstdint>
+#include <vector>
 
 Value::Value(int val) { set_int(val); }
 
@@ -232,6 +233,15 @@ void Value::set_date(int val)
   length_           = sizeof(val);
 }
 
+void Value::set_valuelist()
+{
+  reset();
+  attr_type_    = AttrType::VALUESLISTS;
+  value_.values = new vector<Value>;
+  length_       = sizeof(vector<Value>*);
+  own_data_     = true;
+}
+
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {
@@ -400,3 +410,7 @@ bool Value::get_boolean() const
   }
   return false;
 }
+
+std::vector<Value> *Value::get_valuelist() { return value_.values; }
+
+std::vector<Value> *Value::get_valuelist() const { return value_.values; }
