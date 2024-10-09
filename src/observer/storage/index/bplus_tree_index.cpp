@@ -19,18 +19,18 @@ See the Mulan PSL v2 for more details. */
 
 BplusTreeIndex::~BplusTreeIndex() noexcept { close(); }
 
-RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta, int unique)
+RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
 {
   if (inited_) {
     LOG_WARN("Failed to create index due to the index has been created before. file_name:%s, index:%s, field:%s, unique:%d",
-        file_name, index_meta.name(), index_meta.field(), unique);
+        file_name, index_meta.name(), index_meta.field(), index_meta.unique());
     return RC::RECORD_OPENNED;
   }
 
   Index::init(index_meta, field_meta);
 
   BufferPoolManager &bpm = table->db()->buffer_pool_manager();
-  RC rc = index_handler_.create(table->db()->log_handler(), bpm, file_name, field_meta.type(), field_meta.len(), unique);
+  RC rc = index_handler_.create(table->db()->log_handler(), bpm, file_name, field_meta.type(), field_meta.len(), index_meta.unique());
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to create index_handler, file_name:%s, index:%s, field:%s, rc:%s",
         file_name, index_meta.name(), index_meta.field(), strrc(rc));
@@ -39,16 +39,16 @@ RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &
 
   inited_ = true;
   table_  = table;
-  LOG_INFO("Successfully create index, file_name:%s, index:%s, field:%s",
-    file_name, index_meta.name(), index_meta.field());
+  LOG_INFO("Successfully create index, file_name:%s, index:%s, field:%s, unique:%d" ,
+    file_name, index_meta.name(), index_meta.field(), index_meta.unique());
   return RC::SUCCESS;
 }
 
 RC BplusTreeIndex::open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
 {
   if (inited_) {
-    LOG_WARN("Failed to open index due to the index has been initedd before. file_name:%s, index:%s, field:%s",
-        file_name, index_meta.name(), index_meta.field());
+    LOG_WARN("Failed to open index due to the index has been initedd before. file_name:%s, index:%s, field:%s, unique:%d",
+        file_name, index_meta.name(), index_meta.field(), index_meta.unique());
     return RC::RECORD_OPENNED;
   }
 
@@ -57,15 +57,15 @@ RC BplusTreeIndex::open(Table *table, const char *file_name, const IndexMeta &in
   BufferPoolManager &bpm = table->db()->buffer_pool_manager();
   RC rc = index_handler_.open(table->db()->log_handler(), bpm, file_name);
   if (RC::SUCCESS != rc) {
-    LOG_WARN("Failed to open index_handler, file_name:%s, index:%s, field:%s, rc:%s",
-        file_name, index_meta.name(), index_meta.field(), strrc(rc));
+    LOG_WARN("Failed to open index_handler, file_name:%s, index:%s, field:%s, rc:%s, unique:%d",
+        file_name, index_meta.name(), index_meta.field(), strrc(rc), index_meta.unique());
     return rc;
   }
 
   inited_ = true;
   table_  = table;
-  LOG_INFO("Successfully open index, file_name:%s, index:%s, field:%s",
-    file_name, index_meta.name(), index_meta.field());
+  LOG_INFO("Successfully open index, file_name:%s, index:%s, field:%s, unique:%d",
+    file_name, index_meta.name(), index_meta.field(), index_meta.unique());
   return RC::SUCCESS;
 }
 

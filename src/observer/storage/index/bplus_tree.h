@@ -179,7 +179,7 @@ struct IndexFileHeader
   int32_t  attr_length;        ///< 键值的长度
   int32_t  key_length;         ///< attr length + sizeof(RID)
   AttrType attr_type;          ///< 键值的类型
-  int32_t  unique;             ///< 是否唯一
+  int32_t  unique=0;           ///< 是否唯一
 
   const string to_string() const
   {
@@ -481,12 +481,21 @@ public:
   RC close();
 
   /**
+   * 释放传入的 key
+   */
+  void free_key(char *key);
+
+  /**
    * @brief 此函数向IndexHandle对应的索引中插入一个索引项。
    * @details 参数user_key指向要插入的属性值，参数rid标识该索引项对应的元组，
    * 即向索引中插入一个值为（user_key，rid）的键值对
    * @note 这里假设user_key的内存大小与attr_length 一致
    */
   RC insert_entry(const char *user_key, const RID *rid);
+  /**
+   * unique insert
+   */
+  RC try_insert_entry(const char * user_key);
 
   /**
    * @brief 从IndexHandle句柄对应的索引中删除一个值为（user_key，rid）的索引项

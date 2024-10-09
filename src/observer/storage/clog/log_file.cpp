@@ -237,7 +237,7 @@ RC LogFileManager::init(const char *directory, int max_entry_number_per_file)
   directory_ = filesystem::absolute(filesystem::path(directory));
   max_entry_number_per_file_ = max_entry_number_per_file;
 
-  filesystem::file_status  directory_status = filesystem::status(directory_);
+  [[maybe_unused]] filesystem::file_status  directory_status = filesystem::status(directory_);
 
   // 检查目录是否存在，不存在就创建出来
   if (!filesystem::is_directory(directory_)) {

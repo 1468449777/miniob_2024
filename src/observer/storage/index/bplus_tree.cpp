@@ -819,7 +819,7 @@ RC BplusTreeHandler::create(LogHandler &log_handler,
   }
   LOG_INFO("Successfully open index file %s.", file_name);
 
-  rc = this->create(log_handler, *bp, attr_type, attr_length, internal_max_size, leaf_max_size);
+  rc = this->create(log_handler, *bp, attr_type, attr_length, unique, internal_max_size, leaf_max_size);
   if (OB_FAIL(rc)) {
     bpm.close_file(file_name);
     return rc;
@@ -1529,6 +1529,14 @@ RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
     root_lock_.unlock();
   }
 
+  if (file_header_.unique == 1) {
+    RC rc = try_insert_entry(user_key);
+    if (rc != RC::SUCCESS) {
+      mem_pool_item_->free(key);
+      return rc;
+    }
+  }
+
   Frame *frame = nullptr;
 
   rc = find_leaf(mtr, BplusTreeOperationType::INSERT, key, frame);
@@ -1544,6 +1552,74 @@ RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
   }
 
   LOG_TRACE("insert entry success");
+  return RC::SUCCESS;
+}
+
+void BplusTreeHandler::free_key(char *key)
+{
+  mem_pool_item_->free(key);
+}
+
+RC BplusTreeHandler::try_insert_entry(const char * user_key) 
+{
+  if (user_key == nullptr) {
+    LOG_WARN("Invalid arguments, key is empty or rid is empty");
+    return RC::INVALID_ARGUMENT;
+  }
+
+  MemPoolItem::item_unique_ptr pkey = make_key(user_key, *RID::min());
+  if (pkey == nullptr) {
+    LOG_WARN("Failed to alloc memory for key.");
+    return RC::NOMEM;
+  }
+
+  RC rc = RC::SUCCESS;
+
+  BplusTreeMiniTransaction mtr(*this, &rc);
+
+  char *key = static_cast<char *>(pkey.get());
+
+  Frame *frame = nullptr;
+
+  rc = find_leaf(mtr, BplusTreeOperationType::INSERT, key, frame);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("Failed to find leaf. rc=%d:%s", rc, strrc(rc));
+    mem_pool_item_->free(key);
+    free_key(key);
+    return rc;
+  }
+  LeafIndexNodeHandler left_node(mtr, file_header_, frame);
+  int left_index = left_node.lookup(key_comparator_, key);
+  free_key(key);
+  // lookup 返回的是适合插入的位置，还需要判断一下是否在合适的边界范围内
+  if (left_index >= left_node.size()) { // 超出了当前页，就需要向后移动一个位置
+    const PageNum next_page_num = left_node.next_page();
+    if (next_page_num == BP_INVALID_PAGE_NUM) { // 这里已经是最后一页，说明当前扫描，没有数据
+      frame->mark_dirty();
+      // disk_buffer_pool_->unpin_page(frame);
+      return RC::SUCCESS;
+    }
+    frame->mark_dirty();
+    // disk_buffer_pool_->unpin_page(frame);
+    rc = disk_buffer_pool_->get_this_page(next_page_num, &frame);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to fetch next page. page num=%d, rc=%d:%s", next_page_num, rc, strrc(rc));
+      return rc;
+    }
+    left_index = 0;
+  }
+  int iter_index = left_index;
+  
+  //  判断最小的key的record部分是否与user_key相同，如果相同，就拒绝插入
+  if (memcmp(left_node.key_at(iter_index), user_key, file_header_.attr_length) == 0 ) {
+    frame->mark_dirty();
+    // disk_buffer_pool_->unpin_page(frame);
+    LOG_INFO("try insert fail: frame pin count: %u", frame->pin_count());
+    return RC::SCHEMA_INDEX_UNIQUE;
+  }
+  LOG_INFO("try insert success: frame pin count: %u", frame->pin_count()); 
+  frame->mark_dirty();
+  // disk_buffer_pool_->unpin_page(frame);
   return RC::SUCCESS;
 }
 
