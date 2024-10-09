@@ -123,6 +123,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         NOT
         NULLABLE
         IS
+        HAVING
+        IN
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -148,6 +150,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   float                                      floats;
   std::vector<UpdateValueNode> *             update_values;
   UpdateValueNode *                          update_value;
+  SelectSqlNode *                            sub_select;
 }
 
 %token <number> NUMBER
@@ -181,6 +184,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <order_by_type>       order_by_type
 %type <update_values>        update_values
 %type <update_value>         update_value
+/* %type <sub_select>          sub_select */
 
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
@@ -753,63 +757,23 @@ condition_list:
     }
     | condition {
       $$ = new std::vector<ConditionSqlNode>;
-      $$->emplace_back(*$1);
-      delete $1;
+      $$->push_back(std::move(*$1));
     }
     | condition AND condition_list {
       $$ = $3;
-      $$->emplace_back(*$1);
-      delete $1;
+      $$->push_back(std::move(*$1));
     }
     ;
 condition:
-    rel_attr comp_op value
+    expression comp_op expression
     {
       $$ = new ConditionSqlNode;
       $$->left_is_attr = 1;
-      $$->left_attr = *$1;
+      $$->left_expression.emplace_back($1);
       $$->right_is_attr = 0;
-      $$->right_value = *$3;
+      $$->right_expression.emplace_back($3);
       $$->comp = $2;
 
-      delete $1;
-      delete $3;
-    }
-    | value comp_op value 
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | rel_attr comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | value comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
     }
     ;
 
@@ -883,8 +847,15 @@ order_by_type:
         $$ = DESC_SORT;
       } 
     ;
+/*
+sub_select:
+  LBRACE select_stmt RBRACE
+  {
+    $$ = new SelectSqlNode;
+    (*$$) = $2->SelectSqlNode;
+    delete $2;
 
-
+  }*/
 
 
 load_data_stmt:

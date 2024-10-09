@@ -21,6 +21,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/date_type.h"
 #include "common/type/null_type.h"
 #include <cstdint>
+#include <vector>
+
 
 /**
  * @brief 属性的值
@@ -135,6 +137,7 @@ private:
     float   float_value_;
     bool    bool_value_;
     char   *pointer_value_;
+    std::vector<Value> *values; 
   } value_ = {.int_value_ = 0};
 
   /// 是否申请并占有内存, 目前对于 CHARS 类型 own_data_ 为true, 其余类型 own_data_ 为false
