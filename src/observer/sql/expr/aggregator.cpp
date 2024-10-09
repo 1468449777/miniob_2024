@@ -35,13 +35,7 @@ RC SumAggregator::accumulate(const Value &value)
 
 RC SumAggregator::evaluate(Value &result)
 {
-  if (value_.is_null()) {
-    Value value(0);
-    result = value;
-  } else {
-    result = value_;
-  }
-
+  result = value_;
   return RC::SUCCESS;
 }
 

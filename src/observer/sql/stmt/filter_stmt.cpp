@@ -16,8 +16,11 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "common/rc.h"
+#include "sql/expr/expression.h"
+#include "sql/parser/expression_binder.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include <memory>
 
 FilterStmt::~FilterStmt()
 {
@@ -28,7 +31,7 @@ FilterStmt::~FilterStmt()
 }
 
 RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
+     ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
@@ -79,7 +82,7 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
 }
 
 RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const ConditionSqlNode &condition, FilterUnit *&filter_unit)
+    ConditionSqlNode &condition, FilterUnit *&filter_unit)
 {
   RC rc = RC::SUCCESS;
 
@@ -91,39 +94,34 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   filter_unit = new FilterUnit;
 
-  if (condition.left_is_attr) {
-    Table           *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc                     = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_left(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    filter_obj.init_value(condition.left_value);
-    filter_unit->set_left(filter_obj);
+  vector<unique_ptr<Expression>> bound_expressions;
+  BinderContext                  binder_context;
+  for (auto &table : *tables) {
+    binder_context.add_table(table.second);
   }
+  ExpressionBinder expression_binder(binder_context);
+  
+  // 处理左表达式
+  rc = expression_binder.bind_expression(condition.left_expression.front(), bound_expressions);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("cannot find attr");
+    return rc;
+  }
+  FilterObj left_filter_obj;
+  left_filter_obj.init(std::move(bound_expressions.front()));
+  filter_unit->set_left(std::move(left_filter_obj));
+  bound_expressions.clear();
 
-  if (condition.right_is_attr) {
-    Table           *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc                     = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_right(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    filter_obj.init_value(condition.right_value);
-    filter_unit->set_right(filter_obj);
+    // 处理右表达式
+  rc = expression_binder.bind_expression(condition.right_expression.front(), bound_expressions);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("cannot find attr");
+    return rc;
   }
+  FilterObj right_filter_obj;
+  right_filter_obj.init(std::move(bound_expressions.front()));
+  filter_unit->set_right(std::move(right_filter_obj));
+  bound_expressions.clear();
 
   filter_unit->set_comp(comp);
 

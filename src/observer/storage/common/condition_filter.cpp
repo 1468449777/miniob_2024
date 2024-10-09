@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "condition_filter.h"
 #include "common/log/log.h"
 #include "common/value.h"
+#include "sql/expr/expression.h"
 #include "storage/record/record_manager.h"
 #include "storage/table/table.h"
 #include <math.h>
@@ -64,11 +65,12 @@ RC DefaultConditionFilter::init(Table &table, const ConditionSqlNode &condition)
   AttrType type_left  = AttrType::UNDEFINED;
   AttrType type_right = AttrType::UNDEFINED;
 
-  if (1 == condition.left_is_attr) {
-    left.is_attr                = true;
-    const FieldMeta *field_left = table_meta.field(condition.left_attr.attribute_name.c_str());
+  if (condition.left_expression.front()->type() == ExprType ::UNBOUND_FIELD) {
+    UnboundFieldExpr *unbound_FieldExpr = static_cast<UnboundFieldExpr *>(condition.left_expression.front().get());
+    left.is_attr                        = true;
+    const FieldMeta *field_left         = table_meta.field(unbound_FieldExpr->field_name());
     if (nullptr == field_left) {
-      LOG_WARN("No such field in condition. %s.%s", table.name(), condition.left_attr.attribute_name.c_str());
+      LOG_WARN("No such field in condition. %s.%s", table.name(), unbound_FieldExpr->field_name());
       return RC::SCHEMA_FIELD_MISSING;
     }
     left.attr_length = field_left->len();
@@ -76,28 +78,32 @@ RC DefaultConditionFilter::init(Table &table, const ConditionSqlNode &condition)
 
     type_left = field_left->type();
   } else {
-    left.is_attr = false;
-    left.value   = condition.left_value;  // 校验type 或者转换类型
-    type_left    = condition.left_value.attr_type();
+    ValueExpr *value_expr = static_cast<ValueExpr *>(condition.left_expression.front().get());
+    left.is_attr          = true;
+    left.is_attr          = false;
+    left.value            = value_expr->get_value();  // 校验type 或者转换类型
+    type_left             = value_expr->value_type();
 
     left.attr_length = 0;
     left.attr_offset = 0;
   }
 
-  if (1 == condition.right_is_attr) {
-    right.is_attr                = true;
-    const FieldMeta *field_right = table_meta.field(condition.right_attr.attribute_name.c_str());
+  if (condition.right_expression.front()->type() == ExprType ::UNBOUND_FIELD) {
+    UnboundFieldExpr *unbound_FieldExpr = static_cast<UnboundFieldExpr *>(condition.right_expression.front().get());
+    right.is_attr                       = true;
+    const FieldMeta *field_right        = table_meta.field(unbound_FieldExpr->field_name());
     if (nullptr == field_right) {
-      LOG_WARN("No such field in condition. %s.%s", table.name(), condition.right_attr.attribute_name.c_str());
+      LOG_WARN("No such field in condition. %s.%s", table.name(), unbound_FieldExpr->field_name());
       return RC::SCHEMA_FIELD_MISSING;
     }
     right.attr_length = field_right->len();
     right.attr_offset = field_right->offset();
     type_right        = field_right->type();
   } else {
-    right.is_attr = false;
-    right.value   = condition.right_value;
-    type_right    = condition.right_value.attr_type();
+    ValueExpr *value_expr = static_cast<ValueExpr *>(condition.left_expression.front().get());
+    right.is_attr         = false;
+    right.value           = value_expr->get_value();
+    type_right            = value_expr->value_type();
 
     right.attr_length = 0;
     right.attr_offset = 0;

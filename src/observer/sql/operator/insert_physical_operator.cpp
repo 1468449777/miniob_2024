@@ -37,7 +37,7 @@ RC InsertPhysicalOperator::open(Trx *trx)
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
   }
-  table_->data_buffer_pool()->flush_all_pages();
+  table_->sync();
   return rc;
 }
 

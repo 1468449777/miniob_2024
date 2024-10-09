@@ -109,6 +109,12 @@ void Value::reset()
         value_.pointer_value_ = nullptr;
       }
       break;
+    case AttrType::VALUESLISTS:
+      if (own_data_ && value_.values != nullptr) {
+        delete value_.values;
+        value_.values = nullptr;
+      }
+      break;
     default: break;
   }
 
@@ -211,9 +217,9 @@ void Value::set_date(const char *s)
 }
 
 void Value::set_null()
-{ 
+{
   reset();
-  attr_type_ = AttrType::NULLS;
+  attr_type_        = AttrType::NULLS;
   value_.int_value_ = INT32_MAX;
   length_           = 4;
 }
@@ -317,7 +323,7 @@ int Value::get_int() const
     case AttrType::NULLS: {
       LOG_WARN("try to get null int. type=%d", attr_type_);
       return 0;
-    }    
+    }
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return 0;
