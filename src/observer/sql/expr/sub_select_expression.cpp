@@ -56,17 +56,23 @@ RC SubSelectExpr::get_value(const Tuple &tuple, Value &value) const
     return RC ::ERROR;
   }
 
-  oper_->open(nullptr);
-
+  rc = oper_->open(nullptr);
+  if(OB_FAIL(rc)){
+    return rc;
+  }
+  
   std::vector<Tuple *> tuples;
 
   value.set_valuelist();
-  while (OB_SUCC(oper_->next())) {
+  while (OB_SUCC(rc = oper_->next())) {
     Value value_tmp;
     oper_->current_tuple()->cell_at(0, value_tmp);
     value.get_valuelist()->push_back(value_tmp);
   }
   oper_->close();
+  if (rc != RC::RECORD_EOF) {           // Rc 不为RECORD_EOF 说明，运行出错
+    return rc;
+  }
 
   return RC::SUCCESS;
 }

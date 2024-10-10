@@ -23,7 +23,7 @@ int NullType::compare(const Value &left, const Value &right) const
   if(left.attr_type() == AttrType::NULLS && right.attr_type() == AttrType::NULLS){
     return 0;
   }
-  return -1;  // null 比任何都小
+  return -INT32_MAX;  // null 比任何都小,但在表达式中，却不可比，所以返回 负的INTMAX
 }
 
 RC NullType::set_value_from_str(Value &val, const string &data) const

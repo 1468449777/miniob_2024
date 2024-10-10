@@ -35,7 +35,12 @@ RC SumAggregator::accumulate(const Value &value)
 
 RC SumAggregator::evaluate(Value &result)
 {
-  result = value_;
+  if (value_.attr_type() == AttrType::UNDEFINED) {
+    result.set_null();
+  } else {
+    result = value_;
+  }
+
   return RC::SUCCESS;
 }
 
@@ -60,7 +65,11 @@ RC MaxAggregator::accumulate(const Value &value)
 
 RC MaxAggregator::evaluate(Value &result)
 {
-  result = value_;
+  if (value_.attr_type() == AttrType::UNDEFINED) {
+    result.set_null();
+  } else {
+    result = value_;
+  }
   return RC::SUCCESS;
 }
 
@@ -81,7 +90,11 @@ RC MinAggregator::accumulate(const Value &value)
 
 RC MinAggregator::evaluate(Value &result)
 {
-  result = value_;
+  if (value_.attr_type() == AttrType::UNDEFINED) {
+    result.set_null();
+  } else {
+    result = value_;
+  }
   return RC::SUCCESS;
 }
 
@@ -100,7 +113,11 @@ RC CountAggregator::accumulate(const Value &value)
 
 RC CountAggregator::evaluate(Value &result)
 {
-  result = value_;
+  if (value_.attr_type() == AttrType::UNDEFINED) {
+    result = Value(0);
+  } else {
+    result = value_;
+  }
   return RC::SUCCESS;
 }
 
@@ -126,6 +143,9 @@ RC AvgAggregator::accumulate(const Value &value)
 
 RC AvgAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED) {
+    value_.set_null();
+  }
   if (value_.is_null()) {
     result = value_;
     return RC::SUCCESS;
