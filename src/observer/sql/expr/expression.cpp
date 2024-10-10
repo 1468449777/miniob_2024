@@ -135,6 +135,8 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   int cmp_result = left.compare(right);
   result         = false;
   // 这里写一些比较特殊的情况，谁是高手可以优化一下
+
+  // 这里处理一些子查询比较的情况
   if (left.attr_type() == AttrType::VALUESLISTS && left.get_valuelist()->size() != 1) {
     if (left.get_valuelist()->size() > 1) {
       result = false;
@@ -155,12 +157,32 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     }
   }
 
+  // 处理有null的情况
   if (left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS) {
-    if (comp_ != IS_NOT && comp_ != IS_NULL) {
-      result = false;
-      return rc;
+
+    switch (comp_) {
+      case IS_NOT:
+        if (left.attr_type() == AttrType::NULLS && right.attr_type() == AttrType::NULLS) {
+          result = false;
+          return rc;
+        } else if (left.attr_type() != AttrType::NULLS && right.attr_type() == AttrType::NULLS) {
+          result = true;
+          return rc;
+        }
+        break;
+      case IS_NULL:
+        if (left.attr_type() == AttrType::NULLS && right.attr_type() == AttrType::NULLS) {
+          result = true;
+          return rc;
+        } else if (left.attr_type() != AttrType::NULLS && right.attr_type() == AttrType::NULLS) {
+          result = false;
+          return rc;
+        }
+        break;
+      default: result = false; return rc;
     }
   }
+
   if (cmp_result == INT32_MAX || cmp_result == -INT32_MAX) {
     result = false;
     return rc;

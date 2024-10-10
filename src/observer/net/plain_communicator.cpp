@@ -243,8 +243,12 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     rc = write_tuple_result(sql_result);
   }
 
+  // write_tuple_result函数中，如果rc错误，就清空输出缓冲区，写“failure”
   if (OB_FAIL(rc)) {
-    return rc;
+    sql_result->close();
+    sql_result->set_return_code(rc);
+    writer_->clear_buffer();
+    return write_state(event, need_disconnect);
   }
 
   if (cell_num == 0) {
@@ -316,13 +320,9 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
       return rc;
     }
   }
-  // 如果 返回结果不是record_EOF，说明运行时出错，要清空writer，并写“failure”
+
   if (rc == RC::RECORD_EOF) {
     rc = RC::SUCCESS;
-  } else {
-    writer_->clear_buffer();
-    string failure_line = "FAILURE";
-    rc                  = writer_->writen(failure_line.data(), failure_line.size());
   }
   return rc;
 }

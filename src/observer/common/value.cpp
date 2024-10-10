@@ -43,14 +43,23 @@ Value::Value(const Value &other)
 {
   this->attr_type_ = other.attr_type_;
   this->length_    = other.length_;
-  this->own_data_  = other.own_data_;
+
   switch (this->attr_type_) {
     case AttrType::CHARS: {
+      this->own_data_ = other.own_data_;
       set_string_from_other(other);
     } break;
 
+    case AttrType::VALUESLISTS: {
+      set_valuelist();
+      for (auto &it : *other.value_.values) {
+        value_.values->push_back(it);
+      }
+    } break;
+
     default: {
-      this->value_ = other.value_;
+      this->own_data_ = other.own_data_;
+      this->value_    = other.value_;
     } break;
   }
 }
@@ -73,14 +82,23 @@ Value &Value::operator=(const Value &other)
   reset();
   this->attr_type_ = other.attr_type_;
   this->length_    = other.length_;
-  this->own_data_  = other.own_data_;
+
   switch (this->attr_type_) {
     case AttrType::CHARS: {
+      this->own_data_ = other.own_data_;
       set_string_from_other(other);
     } break;
 
+    case AttrType::VALUESLISTS: {
+      set_valuelist();
+      for (auto &it : *other.value_.values) {
+        value_.values->push_back(it);
+      }
+    } break;
+
     default: {
-      this->value_ = other.value_;
+      this->own_data_ = other.own_data_;
+      this->value_    = other.value_;
     } break;
   }
   return *this;
@@ -113,6 +131,7 @@ void Value::reset()
     case AttrType::VALUESLISTS:
       if (own_data_ && value_.values != nullptr) {
         delete value_.values;
+        own_data_     = false;
         value_.values = nullptr;
       }
       break;
@@ -146,6 +165,12 @@ void Value::set_data(char *data, int length)
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
     } break;
+
+    // 这里默认已经Value已经调用过 set_valuelist() 函数
+    case AttrType::VALUESLISTS: {
+      value_.values->swap(*(std::vector<Value> *)data);
+      delete (std::vector<Value> *)data;
+    }
     case AttrType::NULLS:  // 暂时不用做什么
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
@@ -238,7 +263,7 @@ void Value::set_valuelist()
   reset();
   attr_type_    = AttrType::VALUESLISTS;
   value_.values = new vector<Value>;
-  length_       = sizeof(vector<Value>*);
+  length_       = sizeof(vector<Value> *);
   own_data_     = true;
 }
 
