@@ -156,8 +156,7 @@ typedef struct
 {
   int            isvalue;   // 更新的值可能为子查询，现在还不支持
   std::string    attribute_name;
-  SelectSqlNode *subselect;
-  Value          value;
+  std::unique_ptr<Expression>  expr;
 } UpdateValueNode;
 
 /**

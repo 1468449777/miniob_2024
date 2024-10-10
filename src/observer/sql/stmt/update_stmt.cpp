@@ -15,7 +15,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/update_stmt.h"
 #include "common/log/log.h"
 #include "common/rc.h"
+#include "common/type/attr_type.h"
 #include "common/value.h"
+#include "sql/parser/expression_binder.h"
 #include "sql/parser/parse_defs.h"
 #include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
@@ -36,7 +38,7 @@ UpdateStmt::~UpdateStmt()
   }
 }
 
-RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
+RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 {
   const char *table_name = update.relation_name.c_str();
   if (nullptr == db || nullptr == table_name) {
@@ -53,6 +55,19 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
+
+  vector<unique_ptr<Expression>> bound_expressions;
+  BinderContext                  binder_context;
+  binder_context.add_table(table);
+  ExpressionBinder expression_binder(binder_context);
+
+  for (auto &update_node : update.update_values) {
+    RC rc = expression_binder.bind_expression(update_node.expr, bound_expressions);
+    if (OB_FAIL(rc)) {
+      LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
 
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(db,
@@ -76,19 +91,28 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       return RC::SCHEMA_FIELD_NOT_EXIST;
     }
 
-    Value result_value = update.update_values[i].value;
+    Value result_value;
+    bound_expressions[i]->try_get_value(result_value);
+
+    if (result_value.attr_type() == AttrType::VALUESLISTS) {
+      if (result_value.get_valuelist()->size() != 1) {
+        return RC::ERROR;
+      }
+      Value tmp = result_value.get_valuelist()->front();
+      result_value.set_value(tmp);
+    }
+    
     // 检查更新的值类型是否匹配
-    if (update.update_values[i].value.attr_type() != updatingfieldMeta->type()) {
+    if (result_value.attr_type() != updatingfieldMeta->type()) {
       // 若value为 null，检查是否可以为null
-      if (update.update_values[i].value.is_null()) {
+      if (result_value.is_null()) {
         if (!updatingfieldMeta->can_be_null()) {
           return RC::SCHEMA_FIELD_TYPE_MISMATCH;
         }
       }
 
       // cast 操作目前未实现，后续根据需要进行补充，这里的update 的逻辑已经完善了
-      else if (OB_FAIL(update.update_values[i].value.cast_to(
-                   update.update_values[i].value, updatingfieldMeta->type(), result_value))) {
+      else if (OB_FAIL(result_value.cast_to(result_value, updatingfieldMeta->type(), result_value))) {
         return RC::SCHEMA_FIELD_TYPE_MISMATCH;
       }
     }

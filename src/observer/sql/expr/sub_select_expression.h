@@ -39,8 +39,8 @@ public:
 
   AttrType value_type() const override { return AttrType::VALUESLISTS; }
   RC       get_value(const Tuple &tuple, Value &value) const override;
+  RC       try_get_value( Value &value) const override;
   RC       set_father_tuple_for_physical_oper(Tuple *tuple, PhysicalOperator *oper) const;
-
 private:
   std::unique_ptr<SelectStmt>       subselect_;
   std::unique_ptr<PhysicalOperator> oper_;

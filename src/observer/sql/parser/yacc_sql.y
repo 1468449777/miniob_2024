@@ -546,7 +546,7 @@ update_stmt:      /*  update 语句的语法解析树*/
       }
       
 
-      $$->update.update_values.push_back(*$4);
+      $$->update.update_values.push_back(std::move(*$4));
 
 
       if ($6 != nullptr) {
@@ -568,17 +568,15 @@ update_values:
         else{
           $$=$3;
         }
-        $$->emplace_back(*$2);
+        $$->push_back(std::move(*$2));
       };
 
 update_value:
-    ID EQ value{
+    ID EQ expression{
       UpdateValueNode *updatevalue =new UpdateValueNode();
-      updatevalue->isvalue=1;
       updatevalue->attribute_name = $1;
-      updatevalue->value = *$3;
+      updatevalue->expr = std::unique_ptr<Expression>($3);
       $$ = updatevalue;
-      delete($3);
     };
 
 select_stmt:        /*  select 语句的语法解析树*/
