@@ -137,15 +137,19 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   // 这里写一些比较特殊的情况，谁是高手可以优化一下
 
   // 这里处理一些子查询比较的情况
-  // if (left.attr_type() == AttrType::VALUESLISTS && left.get_valuelist()->size() != 1) {
-  //   if (left.get_valuelist()->size() > 1) {
-  //     result = false;
-  //     return RC::ERROR;  // 返回错误，而不只是过滤掉tuple
-  //   } else if (comp_ != NOT_IN_VALUELIST) {
-  //     result = false;  // 可能是子查询没有值
-  //     return RC::SUCCESS;
-  //   }
-  // }
+  if (left.attr_type() == AttrType::VALUESLISTS && left.get_valuelist()->size() != 1) {
+    if (left.get_valuelist()->size() > 1) {
+      result = false;
+      return RC::ERROR;  // 返回错误，而不只是过滤掉tuple
+    } else {
+      result = false;
+      if (comp_ == NOT_EQUAL) {
+        return RC::ERROR;
+      } else {
+        return RC::SUCCESS;
+      }
+    }
+  }
   if (right.attr_type() == AttrType::VALUESLISTS && right.get_valuelist()->size() != 1) {
 
     if (right.get_valuelist()->size() > 1) {

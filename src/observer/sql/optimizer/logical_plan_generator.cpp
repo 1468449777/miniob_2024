@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 
 #include "common/type/attr_type.h"
+#include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
@@ -296,8 +297,13 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
   }
 
   unique_ptr<PredicateLogicalOperator> predicate_oper;
+
+  // 目前ConjunctionExpr::Type 要么全为AND，要么全为OR.这里不能取filter_units 的第一个，因为一定为AND
   if (!cmp_exprs.empty()) {
-    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
+    ConjunctionExpr::Type       type = filter_stmt->filter_units().back()->conjunction_type() == 0
+                                           ? ConjunctionExpr::Type::AND
+                                           : ConjunctionExpr::Type::OR;
+    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(type, cmp_exprs));
     predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
   }
 

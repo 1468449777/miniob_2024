@@ -126,6 +126,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         HAVING
         IN
         LIKE
+        OR
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -776,11 +777,18 @@ condition_list:
       $$ = nullptr;
     }
     | condition {
+      $1->conjunction_type = 0;
       $$ = new std::vector<ConditionSqlNode>;
       $$->push_back(std::move(*$1));
     }
     | condition AND condition_list {
       $$ = $3;
+      $1->conjunction_type = 0;
+      $$->push_back(std::move(*$1));
+    }
+    | condition OR condition_list {
+      $$ = $3;
+      $1->conjunction_type = 1;
       $$->push_back(std::move(*$1));
     }
     ;

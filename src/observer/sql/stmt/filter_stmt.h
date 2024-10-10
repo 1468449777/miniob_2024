@@ -45,16 +45,18 @@ public:
 
   CompOp comp() const { return comp_; }
 
-  void set_left(FilterObj &&obj) { left_ = std::move(obj); }
-  void set_right(FilterObj &&obj) { right_ = std::move(obj); }
-
+  void       set_left(FilterObj &&obj) { left_ = std::move(obj); }
+  void       set_right(FilterObj &&obj) { right_ = std::move(obj); }
+  void       set_conjunction_type(int type) { conjunction_type_ = type; }
   FilterObj &left() { return left_; }
   FilterObj &right() { return right_; }
+  int        conjunction_type() { return conjunction_type_; }
 
 private:
   CompOp    comp_ = NO_OP;
   FilterObj left_;
   FilterObj right_;
+  int       conjunction_type_;
 };
 
 /**

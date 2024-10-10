@@ -46,6 +46,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
     Record   &record    = row_tuple->record();
     Record    new_record(record);
+    new_record.copy_data(record.data(), record.len());
 
     for (auto &it : values_) {
       int copy_len = it.second.length();

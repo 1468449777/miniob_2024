@@ -93,6 +93,7 @@ struct ConditionSqlNode
   // Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
   // std::shared_ptr<SelectSqlNode>  right_sub_select;
   std::vector<std::unique_ptr<Expression>> right_expression;
+  int conjunction_type;
 };
 
 struct OrderByInfo
@@ -119,7 +120,7 @@ struct SelectSqlNode
   std::vector<std::string>                 relations;    ///< 查询的表
   std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件
   std::vector<std::unique_ptr<Expression>> group_by;     ///< group by clause
-  OrderByInfo                              order_by;
+  OrderByInfo                              order_by; 
 };
 
 /**
