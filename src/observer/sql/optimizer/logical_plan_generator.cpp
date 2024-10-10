@@ -443,6 +443,13 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     collector(expression);
   }
 
+  // collect aggregate expressions in having_conditions
+
+  for(auto & filter_unit : select_stmt->group_by_filter_stmt()->filter_units() ){
+    collector(filter_unit->left().expr);
+    collector(filter_unit->right().expr);
+  }
+
   if (group_by_expressions.empty() && aggregate_expressions.empty()) {
     // 既没有group by也没有聚合函数，不需要group by
     return RC::SUCCESS;

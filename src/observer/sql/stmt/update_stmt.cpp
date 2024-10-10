@@ -58,7 +58,7 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 
   vector<unique_ptr<Expression>> bound_expressions;
   BinderContext                  binder_context;
-  binder_context.add_table(table); // 添加表
+  binder_context.add_table(table);  // 添加表
   ExpressionBinder expression_binder(binder_context);
 
   for (auto &update_node : update.update_values) {
@@ -113,14 +113,16 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
         if (!updatingfieldMeta->can_be_null()) {
           values.clear();
           stmt = new UpdateStmt(table, values, 1, filter_stmt);
-          return rc;
+          return RC::SUCCESS;
           // return RC::SCHEMA_FIELD_TYPE_MISMATCH;
         }
       }
 
       // cast 操作目前未实现，后续根据需要进行补充，这里的update 的逻辑已经完善了
       else if (OB_FAIL(result_value.cast_to(result_value, updatingfieldMeta->type(), result_value))) {
-        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        values.clear();
+        stmt = new UpdateStmt(table, values, 1, filter_stmt);
+        return RC::SUCCESS;
       }
     }
 
