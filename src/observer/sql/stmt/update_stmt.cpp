@@ -96,18 +96,25 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 
     if (result_value.attr_type() == AttrType::VALUESLISTS) {
       if (result_value.get_valuelist()->size() != 1) {
-        return RC::ERROR;
+        // 这里不直接返回错误，原因是 oper 可能一条tuple 也没有，所以还可能返回success。这里将 values 清空以代表 stmt
+        // 阶段出现错误 ，其他清空values的作用类似
+        values.clear();
+        stmt = new UpdateStmt(table, values, 1, filter_stmt);
+        return rc;
       }
       Value tmp = result_value.get_valuelist()->front();
       result_value.set_value(tmp);
     }
-    
+
     // 检查更新的值类型是否匹配
     if (result_value.attr_type() != updatingfieldMeta->type()) {
       // 若value为 null，检查是否可以为null
       if (result_value.is_null()) {
         if (!updatingfieldMeta->can_be_null()) {
-          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+          values.clear();
+          stmt = new UpdateStmt(table, values, 1, filter_stmt);
+          return rc;
+          // return RC::SCHEMA_FIELD_TYPE_MISMATCH;
         }
       }
 

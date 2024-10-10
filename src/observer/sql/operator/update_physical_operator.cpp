@@ -37,6 +37,12 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   trx_ = trx;
 
   while (OB_SUCC(rc = child->next())) {
+    
+    // values_ 为空说明，stmt 阶段出现错误，比如要更新的值类型不匹配等
+    if (values_.empty()) {
+      return RC::ERROR;
+    }
+
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
       LOG_WARN("failed to get current record: %s", strrc(rc));
@@ -55,7 +61,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       }
       bool value_is_null = it.second.is_null();
       memcpy(new_record.data() + it.first->offset(), it.second.data(), copy_len);
-      memcpy(new_record.data() + new_record.len() - it.first->field_id() - 1, &value_is_null, 1); // 修改null标记位
+      memcpy(new_record.data() + new_record.len() - it.first->field_id() - 1, &value_is_null, 1);  // 修改null标记位
     }
     // TODO: 需要做unique处理, 否则影响唯一性约束
     rc = trx_->delete_record(table_, record);
