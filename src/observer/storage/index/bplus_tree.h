@@ -504,6 +504,8 @@ public:
    */
   RC delete_entry(const char *user_key, const RID *rid);
 
+  RC update_entry(const char *old_user_key, const char *user_key, const RID *rid);
+
   bool is_empty() const;
 
   /**

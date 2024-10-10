@@ -1899,6 +1899,26 @@ RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
   return rc;
 }
 
+RC BplusTreeHandler::update_entry(const char *old_user_key, const char *user_key, const RID *rid) {
+  if (old_user_key == nullptr || user_key == nullptr || rid == nullptr) {
+    LOG_WARN("Invalid arguments, key is empty or rid is empty");
+    return RC::INVALID_ARGUMENT;
+  }
+  RC rc = RC::SUCCESS;
+  rc = insert_entry(user_key, rid);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("Failed to update index due to insert new index.");
+    return rc;
+  }
+
+  rc = delete_entry(old_user_key, rid);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("Failed to update index due to delete old index.");
+    return rc;
+  }
+  return rc;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 BplusTreeScanner::BplusTreeScanner(BplusTreeHandler &tree_handler)

@@ -300,7 +300,7 @@ public:
 };
 
 /**
- * @brief 负责处理 PAX 存储格式的页面中各种操作
+ * @brief 负责处理 PAX 存储格式(列存)的页面中各种操作
  * @ingroup RecordManager
  * @details PAX 格式实现，当前定长记录模式下每个页面的组织大概是这样的：
  * @code
@@ -387,6 +387,8 @@ public:
    * @param rid         返回该记录的标识符
    */
   RC insert_record(const char *data, int record_size, RID *rid);
+
+  RC update_record(const Record *record);
 
   /**
    * @brief 数据库恢复时，在指定文件指定位置插入数据

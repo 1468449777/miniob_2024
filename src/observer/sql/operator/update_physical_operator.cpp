@@ -43,9 +43,11 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       return rc;
     }
 
-    RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
-    Record   &record    = row_tuple->record();
-    Record    new_record(record);
+    RowTuple *row_tuple       = static_cast<RowTuple *>(tuple);
+    Record   &record          = row_tuple->record();
+    // Record   new_record(record);                ///疑似存在浅拷贝问题，即new_record和record实际指向同一区域
+    char     *new_record_data = (char *)malloc(record.len() * sizeof(char));
+    memcpy(new_record_data, record.data(), record.len());
 
     for (auto &it : values_) {
       int copy_len = it.second.length();
@@ -53,12 +55,13 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         ++copy_len;
       }
       bool value_is_null = it.second.is_null();
-      memcpy(new_record.data() + it.first->offset(), it.second.data(), copy_len);
-      memcpy(new_record.data() + new_record.len() - it.first->field_id() - 1, &value_is_null, 1); // 修改null标记位
+      memcpy(new_record_data + it.first->offset(), it.second.data(), copy_len);
+      memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1); // 修改null标记位
     }
     // TODO: 需要做unique处理, 否则影响唯一性约束
-    rc = trx_->delete_record(table_, record);
-    rc = trx_->insert_record(table_, new_record);
+    // 
+    rc = trx_->update_record(table_, record, new_record_data, record.len());
+
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to Update record: %s", strrc(rc));
       return rc;

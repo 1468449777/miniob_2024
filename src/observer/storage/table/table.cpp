@@ -505,6 +505,38 @@ RC Table::delete_record(const Record &record)
   return rc;
 }
 
+RC Table::update_record(Record &record, char *new_record_data, int new_record_len)
+{
+  RC rc = RC::SUCCESS;
+  if(record.data() == nullptr){
+    return RC::EMPTY;
+  }
+
+  rc = update_entry_of_indexes(record.data(), new_record_data, record.rid());
+  if (rc != RC::SUCCESS) {
+    // LOG_ERROR("Failed to update indexes of record (rid=%d.%d). rc=%d:%s",
+    //            record.rid().page_num, record.rid().slot_num, rc, strrc(rc));
+    return rc;
+  } 
+
+  record.set_data_owner(new_record_data, new_record_len);
+  rc = record_handler_->update_record(&record);
+
+  return rc;
+}
+
+RC Table::update_entry_of_indexes(const char *record, const char *new_record, const RID &rid) 
+{
+  RC rc = RC::SUCCESS;
+  for (Index *index : indexes_) {
+    rc = index->update_entry(record, new_record, &rid);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+  }
+  return rc;
+}
+
 RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
 {
   RC rc = RC::SUCCESS;

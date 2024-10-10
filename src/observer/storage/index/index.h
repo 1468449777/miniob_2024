@@ -58,6 +58,8 @@ public:
    */
   virtual RC delete_entry(const char *record, const RID *rid) = 0;
 
+  virtual RC update_entry(const char *record, const char *new_record, const RID *rid) = 0;
+
   /**
    * @brief 创建一个索引数据的扫描器
    *

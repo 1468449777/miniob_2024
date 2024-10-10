@@ -238,6 +238,7 @@ public:
   }
   RID       &rid() { return rid_; }
   const RID &rid() const { return rid_; }
+  bool      is_owner() const { return owner_; } /// debug use
 
 private:
   RID rid_;
