@@ -175,6 +175,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <attr_info>           attr_def
 %type <value_list>          value_list
 %type <condition_list>      where
+%type <condition_list>      having_condition
 %type <condition_list>      condition_list
 %type <string>              storage_format
 %type <relation_list>       rel_list
@@ -581,7 +582,7 @@ update_value:
     };
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM rel_list where group_by  order_by_info
+    SELECT expression_list FROM rel_list where group_by having_condition order_by_info
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -605,9 +606,14 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
 
       if ($7 != nullptr) {
-        $$->selection.order_by.order_by_attrs.swap($7->order_by_attrs);
-        $$->selection.order_by.order_by_types.swap($7->order_by_types);
+        $$->selection.group_by_conditions.swap(*$7);
         delete $7;
+      }
+
+      if ($8 != nullptr) {
+        $$->selection.order_by.order_by_attrs.swap($8->order_by_attrs);
+        $$->selection.order_by.order_by_types.swap($8->order_by_types);
+        delete $8;
       }
 
     }
@@ -771,6 +777,18 @@ where:
       $$ = $2;  
     }
     ;
+
+having_condition:
+        /* empty */
+    {
+      $$ = nullptr;
+    }
+    |
+    HAVING condition_list {
+      $$ = $2;  
+    }
+    ;
+
 condition_list:
     /* empty */
     {

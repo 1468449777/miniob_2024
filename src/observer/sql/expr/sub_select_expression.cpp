@@ -98,6 +98,8 @@ RC SubSelectExpr::set_father_tuple_for_physical_oper(Tuple *tuple, PhysicalOpera
 
 RC SubSelectExpr::try_get_value(Value &value) const
 {
-  Tuple *tuple = nullptr;
-  return get_value(*tuple, value);
+  RowTuple                     empty_tuple;
+  const std::vector<FieldMeta> fields;
+  empty_tuple.set_schema(subselect_->tables()[0], &fields);
+  return get_value(empty_tuple, value);
 }

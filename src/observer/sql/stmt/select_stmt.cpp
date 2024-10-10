@@ -62,7 +62,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     tables.push_back(table);
     table_map.insert({table_name, table});
   }
-  
+
   std::vector<Table *> father_tables;
   for (auto father_relation : select_sql.father_relations) {
     Table *father_table = db->find_table(father_relation.c_str());
@@ -103,7 +103,22 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
       &table_map,
       select_sql.conditions.data(),
       static_cast<int>(select_sql.conditions.size()),
-      filter_stmt,father_tables);
+      filter_stmt,
+      father_tables);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("cannot construct filter stmt");
+    return rc;
+  }
+
+  // create group by filter statement in `where` statement
+  FilterStmt *group_by_filter_stmt = nullptr;
+  rc                               = FilterStmt::create(db,
+      default_table,
+      &table_map,
+      select_sql.group_by_conditions.data(),
+      static_cast<int>(select_sql.group_by_conditions.size()),
+      group_by_filter_stmt,
+      father_tables);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;
@@ -124,6 +139,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->tables_.swap(tables);
   select_stmt->query_expressions_.swap(bound_expressions);
   select_stmt->filter_stmt_ = filter_stmt;
+  select_stmt->group_by_filter_stmt_ = group_by_filter_stmt;
   select_stmt->group_by_.swap(group_by_expressions);
   select_stmt->order_by_.order_by_attrs.swap(order_by_expressions);
   select_stmt->order_by_.order_by_types.swap(select_sql.order_by.order_by_types);

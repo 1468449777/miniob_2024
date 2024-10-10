@@ -171,8 +171,20 @@ RC LogicalPlanGenerator::create_plan(
     if (*last_oper) {
       group_by_oper->add_child(std::move(*last_oper));
     }
-
     last_oper = &group_by_oper;
+  }
+
+  unique_ptr<LogicalOperator> group_by_predicate_oper;
+  rc = create_plan(select_stmt->group_by_filter_stmt(), group_by_predicate_oper);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+    return rc;
+  }
+  if (group_by_predicate_oper) {
+    if (*last_oper) {
+      group_by_predicate_oper->add_child(std::move(*last_oper));
+    }
+    last_oper = &group_by_predicate_oper;
   }
 
   auto project_oper = make_unique<ProjectLogicalOperator>(std::move(select_stmt->query_expressions()));
