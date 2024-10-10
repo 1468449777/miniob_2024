@@ -21,13 +21,15 @@ int IntegerType::compare(const Value &left, const Value &right) const
     return INT32_MAX;
   }
   ASSERT(left.attr_type() == AttrType::INTS, "left type is not integer");
-  ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS, "right type is not numeric");
+  ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS || right.attr_type() == AttrType::VALUESLISTS, "right type is not numeric");
   if (right.attr_type() == AttrType::INTS) {
     return common::compare_int((void *)&left.value_.int_value_, (void *)&right.value_.int_value_);
   } else if (right.attr_type() == AttrType::FLOATS) {
     float left_val  = left.get_float();
     float right_val = right.get_float();
     return common::compare_float((void *)&left_val, (void *)&right_val);
+  } else if (right.attr_type() == AttrType::VALUESLISTS) {
+    return -right.compare(left);
   }
 
   return INT32_MAX;
@@ -92,10 +94,10 @@ RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
   return RC::SUCCESS;
 }
 
-int IntegerType::cast_cost(AttrType type) 
-  {
-    if (type == AttrType::FLOATS) {
-      return 1;
-    }
-    return INT32_MAX;
+int IntegerType::cast_cost(AttrType type)
+{
+  if (type == AttrType::FLOATS) {
+    return 1;
   }
+  return INT32_MAX;
+}

@@ -47,6 +47,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/scalar_group_by_physical_operator.h"
 #include "sql/operator/table_scan_vec_physical_operator.h"
 #include "sql/optimizer/physical_plan_generator.h"
+#include "sql/operator/father_tuple_logical_operator.h"
+#include "sql/operator/father_tuple_physical_operator.h"
+#include "sql/operator/group_by_physical_operator.h"
 
 using namespace std;
 
@@ -97,6 +100,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
 
     case LogicalOperatorType::ORDER_BY: {
       return create_plan(static_cast<SortLogicalOperator &>(logical_operator), oper);
+    } break;
+
+    case LogicalOperatorType::FATHER_TUPLE: {
+      return create_plan(static_cast<FatherTupleLogicalOperator &>(logical_operator), oper);
     } break;
 
     default: {
@@ -518,5 +525,19 @@ RC PhysicalPlanGenerator::create_plan(SortLogicalOperator &logical_oper, std::un
   sort_oper->add_child(std::move(child_physical_oper));
 
   oper = std::move(sort_oper);
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(FatherTupleLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper)
+{
+  RC rc = RC::SUCCESS;
+
+  unique_ptr<FatherTuplePhysicalOperator> father_tuple_oper;
+
+  father_tuple_oper = make_unique<FatherTuplePhysicalOperator>();
+
+  ASSERT(logical_oper.children().size() == 0, "father tuple operator should have 0 child");
+
+  oper = std::move(father_tuple_oper);
   return rc;
 }

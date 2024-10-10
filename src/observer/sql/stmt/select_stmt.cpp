@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 #include "sql/parser/expression_binder.h"
+#include <vector>
 
 using namespace std;
 using namespace common;
@@ -61,6 +62,13 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     tables.push_back(table);
     table_map.insert({table_name, table});
   }
+  
+  std::vector<Table *> father_tables;
+  for (auto father_relation : select_sql.father_relations) {
+    Table *father_table = db->find_table(father_relation.c_str());
+    binder_context.add_table(father_table);
+    father_tables.push_back(father_table);
+  }
 
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;
@@ -95,7 +103,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
       &table_map,
       select_sql.conditions.data(),
       static_cast<int>(select_sql.conditions.size()),
-      filter_stmt);
+      filter_stmt,father_tables);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;

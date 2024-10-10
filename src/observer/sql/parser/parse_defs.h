@@ -53,7 +53,9 @@ enum CompOp
   GREAT_THAN,   ///< ">"
   IS_NULL,
   IS_NOT,
-  LIKE,
+  LIKE_OP,
+  IN_VALUELIST,
+  NOT_IN_VALUELIST,
   NO_OP
 };
 
@@ -111,7 +113,8 @@ struct OrderByInfo
  */
 
 struct SelectSqlNode
-{
+{ 
+  std::vector<std::string>                 father_relations;  ///< 用于子查询检查属性的有效性，并不用于真正的查询
   std::vector<std::unique_ptr<Expression>> expressions;  ///< 查询的表达式
   std::vector<std::string>                 relations;    ///< 查询的表
   std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件

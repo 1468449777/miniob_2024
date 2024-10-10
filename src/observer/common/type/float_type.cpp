@@ -23,11 +23,14 @@ int FloatType::compare(const Value &left, const Value &right) const
     return INT32_MAX;
   }
   ASSERT(left.attr_type() == AttrType::FLOATS, "left type is not integer");
-  ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS || right.attr_type() == AttrType::NULLS, "right type is not numeric");
-
-  float left_val  = left.get_float();
-  float right_val = right.get_float();
-  return common::compare_float((void *)&left_val, (void *)&right_val);
+  ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS || right.attr_type() == AttrType::VALUESLISTS, "right type is not numeric");
+  if (right.attr_type() == AttrType::VALUESLISTS) {
+    return -right.compare(left);
+  } else {
+    float left_val  = left.get_float();
+    float right_val = right.get_float();
+    return common::compare_float((void *)&left_val, (void *)&right_val);
+  }
 }
 
 RC FloatType::add(const Value &left, const Value &right, Value &result) const

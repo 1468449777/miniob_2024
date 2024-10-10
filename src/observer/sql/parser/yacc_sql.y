@@ -126,6 +126,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         IS
         HAVING
         IN
+        LIKE
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -185,7 +186,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <order_by_type>       order_by_type
 %type <update_values>        update_values
 %type <update_value>         update_value
-/* %type <sub_select>          sub_select */
+%type <sub_select>          sub_select 
 
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
@@ -468,36 +469,37 @@ type:
     | DATE_T { $$ = static_cast<int>(AttrType::DATES); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE 
+    INSERT INTO ID VALUES LBRACE  value_list RBRACE 
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
-      if ($7 != nullptr) {
-        $$->insertion.values.swap(*$7);
-        delete $7;
+      if ($6 != nullptr) {
+        $$->insertion.values.swap(*$6);
+        delete $6;
       }
-      $$->insertion.values.emplace_back(*$6);
       std::reverse($$->insertion.values.begin(), $$->insertion.values.end());
-      delete $6;
       free($3);
     }
     ;
-
 value_list:
-    /* empty */
+    value
     {
-      $$ = nullptr;
+       $$ = new std::vector<Value>;
+       $$->emplace_back(*$1);
+       delete $1;
     }
-    | COMMA value value_list  { 
+    |
+    value COMMA  value_list  { 
       if ($3 != nullptr) {
         $$ = $3;
       } else {
         $$ = new std::vector<Value>;
       }
-      $$->emplace_back(*$2);
-      delete $2;
+      $$->emplace_back(*$1);
+      delete $1;
     }
     ;
+
 value:
     NUMBER {
       $$ = new Value((int)$1);
@@ -675,6 +677,18 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
       delete $1;
     }
+
+    // 目前无法识别 in (1) 这样类型的例子，也就是如果括号里只有一个值，还是会识别为普通的值表达式
+    | LBRACE value COMMA value_list RBRACE {
+      Value values;
+      values.set_valuelist();
+      values.get_valuelist()->swap(*$4);
+      values.get_valuelist()->emplace_back(*$2);
+      $$ = new ValueExpr(values);
+      $$->set_name(token_name(sql_string, &@$));
+      delete $2;
+      delete $4;
+    }
     | rel_attr {
       RelAttrSqlNode *node = $1;
       $$ = new UnboundFieldExpr(node->relation_name, node->attribute_name);
@@ -684,11 +698,12 @@ expression:
     | '*' {
       $$ = new StarExpr();
     }
+
+
     | aggregate_type LBRACE expression RBRACE{
        $$ = new UnboundAggregateExpr($1, $3);
        $$->set_name(token_name(sql_string, &@$));
     }
-
     /* 下面两个仅仅是为了使结果返回failure，而不是failed to parse sql */
     | aggregate_type LBRACE  RBRACE{
        $$ = new UnboundAggregateExpr("Failure", nullptr);
@@ -698,7 +713,14 @@ expression:
        $$ = new UnboundAggregateExpr("Failure", nullptr);
        $$->set_name(token_name(sql_string, &@$));
     }
-    // your code here
+
+    | sub_select{
+      $$ = new UnboundSubSelectExpr($1);
+      $$->set_name(token_name(sql_string, &@$));
+
+    }
+
+
     ;
 
 aggregate_type:
@@ -800,6 +822,9 @@ comp_op:
     | NE { $$ = NOT_EQUAL; }
     | IS { $$ = IS_NULL;}
     | IS NOT { $$ = IS_NOT;}
+    | LIKE { $$ = LIKE_OP;}
+    | IN { $$ = IN_VALUELIST;}
+    | NOT IN { $$ = NOT_IN_VALUELIST;}
     ;
 
 // your code here
@@ -861,15 +886,16 @@ order_by_type:
         $$ = DESC_SORT;
       } 
     ;
-/*
+
 sub_select:
   LBRACE select_stmt RBRACE
   {
     $$ = new SelectSqlNode;
-    (*$$) = $2->SelectSqlNode;
+    (*$$) = std::move($2->selection);
     delete $2;
 
-  }*/
+  };
+  
 
 
 load_data_stmt:

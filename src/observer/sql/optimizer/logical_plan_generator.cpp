@@ -15,11 +15,14 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/logical_plan_generator.h"
 
 #include <common/log/log.h>
+#include <cstddef>
 #include <memory>
 
 #include "common/type/attr_type.h"
+#include "sql/expr/tuple.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
+#include "sql/operator/father_tuple_logical_operator.h"
 #include "sql/operator/update_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
 #include "sql/operator/insert_logical_operator.h"
@@ -31,6 +34,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/group_by_logical_operator.h"
 
+#include "sql/parser/parse_defs.h"
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
@@ -97,7 +101,8 @@ RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, std::unique_ptr<Logica
   return RC::SUCCESS;
 }
 
-RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator)
+RC LogicalPlanGenerator::create_plan(
+    SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator, bool is_sub_select)
 {
   unique_ptr<LogicalOperator> *last_oper = nullptr;
 
@@ -116,6 +121,18 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
       join_oper->add_child(std::move(table_get_oper));
       table_oper = unique_ptr<LogicalOperator>(join_oper);
     }
+  }
+
+  unique_ptr<LogicalOperator> joind_father_tuple_oper;  // 将 father_tuple 与 原始的表join ，实现复杂子查询
+  if (is_sub_select) {
+    unique_ptr<LogicalOperator> father_tuple_oper = make_unique<FatherTupleLogicalOperator>();
+    JoinLogicalOperator        *join_oper         = new JoinLogicalOperator;
+    // ***** 这里注意，由于目前的逻辑是，join的右孩子只能 open 和 close 一次，
+    // 而father_tuple_oper每次open的返回的tuple不一致，所以必须把father_tuple_oper放到左孩子
+    join_oper->add_child(std::move(father_tuple_oper));
+    join_oper->add_child(std::move(*last_oper));
+    joind_father_tuple_oper = unique_ptr<LogicalOperator>(join_oper);
+    last_oper               = &joind_father_tuple_oper;
   }
 
   unique_ptr<LogicalOperator> predicate_oper;
@@ -215,43 +232,63 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     unique_ptr<Expression> left = std::move(filter_obj_left.expression());
 
     unique_ptr<Expression> right = std::move(filter_obj_right.expression());
+    switch (filter_unit->comp()) {
+      case IS_NULL:
+      case IS_NOT: break;
 
-    if (left->value_type() != right->value_type() && right->value_type() != AttrType::NULLS &&
-        left->value_type() != AttrType::NULLS) {
-      auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
-      auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
-      if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
-        ExprType left_type = left->type();
-        auto     cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
-        if (left_type == ExprType::VALUE) {
-          Value left_val;
-          if (OB_FAIL(rc = cast_expr->try_get_value(left_val))) {
-            LOG_WARN("failed to get value from left child", strrc(rc));
-            return rc;
-          }
-          left = make_unique<ValueExpr>(left_val);
-        } else {
-          left = std::move(cast_expr);
+      case IN_VALUELIST:
+        if (right->value_type() != AttrType::VALUESLISTS) {
+          return RC::UNSUPPORTED;
         }
-      } else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX) {
-        ExprType right_type = right->type();
-        auto     cast_expr  = make_unique<CastExpr>(std::move(right), left->value_type());
-        if (right_type == ExprType::VALUE) {
-          Value right_val;
-          if (OB_FAIL(rc = cast_expr->try_get_value(right_val))) {
-            LOG_WARN("failed to get value from right child", strrc(rc));
-            return rc;
-          }
-          right = make_unique<ValueExpr>(right_val);
-        } else {
-          right = std::move(cast_expr);
+        break;
+      case NOT_IN_VALUELIST:
+        if (right->value_type() != AttrType::VALUESLISTS) {
+          return RC::UNSUPPORTED;
+        }
+        break;
+
+      default:  // 普通的大于小于
+        if (left->value_type() == AttrType ::VALUESLISTS || right->value_type() == AttrType ::VALUESLISTS) {
+          break;
         }
 
-      } else {
-        rc = RC::UNSUPPORTED;
-        LOG_WARN("unsupported cast from %s to %s", attr_type_to_string(left->value_type()), attr_type_to_string(right->value_type()));
-        return rc;
-      }
+        if (left->value_type() != right->value_type() && right->value_type() != AttrType::NULLS &&
+            left->value_type() != AttrType::NULLS) {
+          auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
+          auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
+          if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
+            ExprType left_type = left->type();
+            auto     cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
+            if (left_type == ExprType::VALUE) {
+              Value left_val;
+              if (OB_FAIL(rc = cast_expr->try_get_value(left_val))) {
+                LOG_WARN("failed to get value from left child", strrc(rc));
+                return rc;
+              }
+              left = make_unique<ValueExpr>(left_val);
+            } else {
+              left = std::move(cast_expr);
+            }
+          } else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX) {
+            ExprType right_type = right->type();
+            auto     cast_expr  = make_unique<CastExpr>(std::move(right), left->value_type());
+            if (right_type == ExprType::VALUE) {
+              Value right_val;
+              if (OB_FAIL(rc = cast_expr->try_get_value(right_val))) {
+                LOG_WARN("failed to get value from right child", strrc(rc));
+                return rc;
+              }
+              right = make_unique<ValueExpr>(right_val);
+            } else {
+              right = std::move(cast_expr);
+            }
+
+          } else {
+            rc = RC::UNSUPPORTED;
+            LOG_WARN("unsupported cast from %s to %s", attr_type_to_string(left->value_type()), attr_type_to_string(right->value_type()));
+            return rc;
+          }
+        };
     }
 
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));

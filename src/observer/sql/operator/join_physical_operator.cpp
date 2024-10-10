@@ -18,26 +18,25 @@ NestedLoopJoinPhysicalOperator::NestedLoopJoinPhysicalOperator() {}
 
 RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
 {
- if (children_.size() != 2) {
+  if (children_.size() != 2) {
     LOG_WARN("nlj operator should have 2 children");
     return RC::INTERNAL;
   }
 
-  RC rc = RC::SUCCESS;
-  left_ = children_[0].get();
-  right_ = children_[1].get();
+  RC rc         = RC::SUCCESS;
+  left_         = children_[0].get();
+  right_        = children_[1].get();
   right_closed_ = true;
-  round_done_ = true;
+  round_done_   = true;
 
- 
-  rc= right_->open(trx);
-  while((rc=right_->next())==RC::SUCCESS){
-     righttuples.push_back(right_->current_tuple());
+  rc = right_->open(trx);
+  while ((rc = right_->next()) == RC::SUCCESS) {
+    righttuples.push_back(right_->current_tuple());
   }
-  if(rc!=RC::RECORD_EOF){
-     return RC::ERROR;
-  } 
-  rc = left_->open(trx);
+  if (rc != RC::RECORD_EOF) {
+    return RC::ERROR;
+  }
+  rc   = left_->open(trx);
   trx_ = trx;
   return rc;
 }
@@ -80,7 +79,9 @@ RC NestedLoopJoinPhysicalOperator::close()
   }
   rc = right_->close();
   righttuples.clear();
-  rightindex = -1;
+  rightindex   = -1;
+  left_tuple_  = nullptr;
+  right_tuple_ = nullptr;
   return rc;
 }
 
