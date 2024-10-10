@@ -1610,7 +1610,7 @@ RC BplusTreeHandler::try_insert_entry(const char * user_key)
   }
   int iter_index = left_index;
   
-  //  判断最小的key的record部分是否与user_key相同，如果相同，就拒绝插入
+  //  判断最左key(最适合插入的key)的record部分是否与user_key相同，如果相同，就拒绝插入
   if (memcmp(left_node.key_at(iter_index), user_key, file_header_.attr_length) == 0 ) {
     frame->mark_dirty();
     // disk_buffer_pool_->unpin_page(frame);
