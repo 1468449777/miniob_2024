@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/sstream.h"
 #include "common/log/log.h"
 #include "common/type/attr_type.h"
+#include "common/type/float_type.h"
 #include "common/type/integer_type.h"
 #include "common/value.h"
 
@@ -85,13 +86,33 @@ RC IntegerType::to_string(const Value &val, string &result) const
 
 RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
 {
-  if (type != AttrType::FLOATS) {
-    return RC::UNSUPPORTED;
-  }
 
-  float float_value = (float)(val.get_int());
-  result.set_float(float_value);
-  return RC::SUCCESS;
+  switch (type) {
+    case AttrType::CHARS: {
+      string char_value = val.get_string().c_str();
+      result.set_string(char_value.c_str(), char_value.size());
+      return RC::SUCCESS;
+    }
+
+    case AttrType::FLOATS: {
+      float float_value = (float)(val.get_int());
+      result.set_float(float_value);
+      return RC::SUCCESS;
+      break;
+    }
+
+    case AttrType::INTS: {
+      result = val;
+      return RC::SUCCESS;
+    }
+    case AttrType::BOOLEANS:
+    case AttrType::DATES:
+    case AttrType::NULLS:
+    case AttrType::VALUESLISTS:
+    case AttrType::MAXTYPE:
+
+    default: return RC::UNIMPLEMENTED;
+  }
 }
 
 int IntegerType::cast_cost(AttrType type)

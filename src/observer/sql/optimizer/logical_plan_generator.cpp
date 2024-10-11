@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include <cstddef>
 #include <memory>
 
+#include "common/rc.h"
 #include "common/type/attr_type.h"
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
@@ -249,6 +250,12 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       case IS_NULL:
       case IS_NOT: break;
 
+      case LIKE_OP:
+        if (right->value_type() != AttrType::CHARS || left->value_type() != AttrType::CHARS) {
+          return RC::ERROR;
+        }
+        break;
+
       case IN_VALUELIST:
         if (right->value_type() != AttrType::VALUESLISTS) {
           return RC::UNSUPPORTED;
@@ -445,7 +452,7 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
 
   // collect aggregate expressions in having_conditions
 
-  for(auto & filter_unit : select_stmt->group_by_filter_stmt()->filter_units() ){
+  for (auto &filter_unit : select_stmt->group_by_filter_stmt()->filter_units()) {
     collector(filter_unit->left().expr);
     collector(filter_unit->right().expr);
   }

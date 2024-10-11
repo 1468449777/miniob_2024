@@ -91,3 +91,33 @@ RC FloatType::to_string(const Value &val, string &result) const
   result = ss.str();
   return RC::SUCCESS;
 }
+
+RC FloatType::cast_to(const Value &val, AttrType type, Value &result) const
+{
+
+  switch (type) {
+    case AttrType::CHARS: {
+      string char_value = val.get_string().c_str();
+      result.set_string(char_value.c_str(), char_value.size());
+      return RC::SUCCESS;
+    }
+
+    case AttrType::FLOATS: {
+      result = val;
+      return RC::SUCCESS;
+    }
+
+    case AttrType::INTS: {
+      int int_value = (float)(val.get_float());
+      result.set_int(int_value);
+      return RC::SUCCESS;
+    }
+    case AttrType::BOOLEANS:
+    case AttrType::DATES:
+    case AttrType::NULLS:
+    case AttrType::VALUESLISTS:
+    case AttrType::MAXTYPE:
+
+    default: return RC::UNIMPLEMENTED;
+  }
+}

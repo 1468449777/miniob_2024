@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include <cstdint>
 #include <vector>
+#include <regex>
 
 Value::Value(int val) { set_int(val); }
 
@@ -439,3 +440,27 @@ bool Value::get_boolean() const
 std::vector<Value> *Value::get_valuelist() { return value_.values; }
 
 std::vector<Value> *Value::get_valuelist() const { return value_.values; }
+
+bool Value::sql_like(Value like_value) const{
+     std::string s1 =this->get_string();
+     std::string s2= like_value.get_string();
+    std::string pattern = s2;
+    // 替换 SQL 的 LIKE 模式为正则表达式模式
+    // 转义 regex 特殊字符
+    std::string regex_special_chars = "\\^.$|()[]*+?";
+    for(char c : regex_special_chars) {
+        std::string str_c(1, c);
+        std::regex r("\\" + str_c);
+        pattern = std::regex_replace(pattern, r, "\\" + str_c);
+    }
+    // 替换 % 为 .*
+    std::regex r1("%");
+    pattern = std::regex_replace(pattern, r1, ".*");
+    // 替换 _ 为 .
+    std::regex r2("_");
+    pattern = std::regex_replace(pattern, r2, ".");
+    // 创建正则表达式
+    std::regex r(pattern, std::regex::ECMAScript | std::regex::icase);
+    // 匹配字符串
+    return std::regex_match(s1, r);
+}

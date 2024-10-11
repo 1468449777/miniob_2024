@@ -302,6 +302,11 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
         }
       }
     } break;
+
+    case LIKE_OP: {
+      bool_value = left_value.sql_like(right_value);
+      break;
+    }
     default: rc = compare_value(left_value, right_value, bool_value);
   }
 
