@@ -33,6 +33,19 @@ RC CharType::set_value_from_str(Value &val, const string &data) const
 RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
 {
   switch (type) {
+    case AttrType::INTS:
+    {
+      std::string s = val.get_string();
+      int ans = 0;
+      int end = 0;
+      while (end < s.length() && (s[end] >= '0' && s[end] <= '9')) 
+        end++;
+      for (int i = 0; i < end; i++) {
+        ans = ans * 10 + (s[i] - '0');
+      }
+      result = Value(ans);
+    }
+    break;
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;
@@ -42,6 +55,9 @@ int CharType::cast_cost(AttrType type)
 {
   if (type == AttrType::CHARS) {
     return 0;
+  }
+  if (type == AttrType::INTS) {
+    return 10;
   }
   return INT32_MAX;
 }
