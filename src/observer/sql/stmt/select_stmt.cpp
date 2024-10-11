@@ -42,6 +42,22 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 
   BinderContext binder_context;
 
+  // 将join table的相关信息直接合并到原先的select 语句中
+  if (!select_sql.join_info.empty()) {
+    for (JoinEntry &entry : select_sql.join_info) {
+      // select_sql.relations.emplace_back(entry.join_table);
+      if (!entry.join_conditions.empty()) {
+        for (ConditionSqlNode &join_cond : entry.join_conditions) {
+          select_sql.conditions.push_back(std::move(join_cond));
+        }
+        // std::copy(entry.join_conditions.begin(), entry.join_conditions.end(), std::back_inserter(select_sql.conditions));
+      }
+    }
+    for (auto ite = select_sql.join_info.rbegin(); ite != select_sql.join_info.rend(); ++ite) {
+      select_sql.relations.emplace_back((*ite).join_table);
+    }
+  }
+
   // collect tables in `from` statement
   vector<Table *>                tables;
   unordered_map<string, Table *> table_map;
@@ -73,6 +89,23 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;
   ExpressionBinder               expression_binder(binder_context);
+
+  // bind condition expression, 在做filter stmt的时候会绑定，此处不需要
+  // for (ConditionSqlNode &cond : select_sql.conditions) {
+  //   std::vector<std::unique_ptr<Expression>> left_bound;
+  //   std::vector<std::unique_ptr<Expression>> right_bound;
+  //   for (std::unique_ptr<Expression> &exp : cond.left_expression) {
+  //     expression_binder.bind_expression(exp, left_bound);
+  //   }
+  //   cond.left_expression.swap(left_bound);
+    
+  //   for (std::unique_ptr<Expression> &exp : cond.right_expression) {
+  //     expression_binder.bind_expression(exp, right_bound);
+  //   }
+  //   cond.left_expression.swap(right_bound);
+  // }
+
+
 
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
     RC rc = expression_binder.bind_expression(expression, bound_expressions);

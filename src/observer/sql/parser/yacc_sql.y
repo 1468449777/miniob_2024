@@ -128,6 +128,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         IN
         LIKE
         OR
+        INNER
+        JOIN
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -154,6 +156,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   std::vector<std::string> *                 IDList;
   std::vector<UpdateValueNode> *             update_values;
   UpdateValueNode *                          update_value;
+  JoinEntry *                                join_entry;
+  std::vector<JoinEntry> *                   join_list;
   SelectSqlNode *                            sub_select;
 }
 
@@ -179,6 +183,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <condition_list>      where
 %type <condition_list>      having_condition
 %type <condition_list>      condition_list
+%type <condition_list>      on
 %type <string>              storage_format
 %type <relation_list>       rel_list
 %type <expression>          expression
@@ -191,6 +196,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <update_value>        update_value
 %type <sub_select>          sub_select 
 %type <IDList>              IDList
+%type <join_entry>     join_entry
+%type <join_list>      join_list
+
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
@@ -622,7 +630,7 @@ update_value:
     };
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM rel_list where group_by having_condition order_by_info
+    SELECT expression_list FROM rel_list join_list where group_by having_condition order_by_info
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -636,24 +644,29 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
 
       if ($5 != nullptr) {
-        $$->selection.conditions.swap(*$5);
+        $$->selection.join_info.swap(*$5);
         delete $5;
       }
 
       if ($6 != nullptr) {
-        $$->selection.group_by.swap(*$6);
+        $$->selection.conditions.swap(*$6);
         delete $6;
       }
 
       if ($7 != nullptr) {
-        $$->selection.group_by_conditions.swap(*$7);
+        $$->selection.group_by.swap(*$7);
         delete $7;
       }
-
+      
       if ($8 != nullptr) {
-        $$->selection.order_by.order_by_attrs.swap($8->order_by_attrs);
-        $$->selection.order_by.order_by_types.swap($8->order_by_types);
+        $$->selection.group_by_conditions.swap(*$8);
         delete $8;
+      }
+
+      if ($9 != nullptr) {
+        $$->selection.order_by.order_by_attrs.swap($9->order_by_attrs);
+        $$->selection.order_by.order_by_types.swap($9->order_by_types);
+        delete $9;
       }
 
     }
@@ -667,6 +680,46 @@ calc_stmt:
     }
     ;
 
+join_list:
+  {
+    /*empty*/
+    $$ = nullptr;
+  }
+  |
+  join_entry join_list{
+    if ($2 != nullptr) {
+      $$ = $2;
+    }
+    else {
+      $$ = new std::vector<JoinEntry>;
+    }
+    $$->push_back(std::move(*$1));
+  }
+  ;
+
+join_entry:
+  INNER JOIN relation on {
+    $$ = new JoinEntry;
+    $$->join_table = std::string($3);
+    free($3);
+    if ($4 != nullptr) {
+      $$->join_conditions.swap(*$4);
+      delete $4;
+    }
+  }
+    ;
+
+on: 
+  {
+    /*empty*/
+    $$ = nullptr;
+  }
+  |
+  ON condition_list
+  {
+    $$ = $2;
+  }
+  ;
 expression_list:
     expression
     {

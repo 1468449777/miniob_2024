@@ -10,6 +10,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/lang/comparator.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "common/type/char_type.h"
 #include "common/value.h"
 #include <cstdint>
@@ -33,6 +34,53 @@ RC CharType::set_value_from_str(Value &val, const string &data) const
 RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
 {
   switch (type) {
+    case AttrType::INTS:
+    {
+      std::string s = val.get_string();
+      int ans = 0;
+      int end = 0;
+      while (end < s.length() && (s[end] >= '0' && s[end] <= '9')) 
+        end++;
+      for (int i = 0; i < end; i++) {
+        ans = ans * 10 + (s[i] - '0');
+      }
+      result = Value(ans);
+    }
+    break;
+    case AttrType::FLOATS : {
+      std::string s = val.get_string();
+      float int_part = 0.0, dec_part = 0.0;
+      float ans = 0.0;
+      int end = 0;
+      int dot_point = -1;
+      for (end = 0; end < s.length(); end++) {
+        if (s[end] == '.') {
+          if (end == 0 || dot_point > 0) 
+            break;
+          else {
+            dot_point = end;
+          }
+        }
+        else if (s[end] < '0' || s[end] > '9')
+          break;
+      }
+
+      if (dot_point == -1 || (dot_point + 1 == end)) {
+        for (int i = 0; i < end; i++)
+          int_part = int_part * 10 + (s[i] - '0');
+      }
+      else {
+        for (int i = 0; i < dot_point; i++) {
+          int_part = int_part * 10 + (s[i] - '0');
+        }
+        for (int i = end - 1; i > dot_point; i--) {
+          dec_part = dec_part * 0.1 + (s[i] - '0') * 0.1;
+        }
+      }
+      ans = int_part + dec_part;
+      result = Value(ans);
+    }
+    break;
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;
@@ -42,6 +90,12 @@ int CharType::cast_cost(AttrType type)
 {
   if (type == AttrType::CHARS) {
     return 0;
+  }
+  if (type == AttrType::INTS) {
+    return 10;
+  }
+  if (type == AttrType::FLOATS) {
+    return 10;
   }
   return INT32_MAX;
 }
