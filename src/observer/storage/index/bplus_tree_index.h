@@ -34,7 +34,7 @@ public:
 
   RC delete_entry(const char *record, const RID *rid) override;
   RC insert_entry(Record &record, const RID *rid, const int record_size, int field_indexs[]) override;
-  RC update_entry(const char *record, const char *new_record, const RID *rid) override;
+  RC update_entry(const char *record, const char *new_record, const RID *rid, int record_null) override;
 
   /**
    * 获取索引的数据长度（所有索引字段的长度之和）

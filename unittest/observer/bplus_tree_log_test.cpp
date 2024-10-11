@@ -95,7 +95,7 @@ TEST(BplusTreeLog, base)
   for (int i : keys) {
     RID rid(i, i);
     int key = i;
-    ASSERT_EQ(RC::SUCCESS, bplus_tree->insert_entry(reinterpret_cast<const char *>(&key), &rid));
+    ASSERT_EQ(RC::SUCCESS, bplus_tree->insert_entry(reinterpret_cast<const char *>(&key), &rid,0));
   }
 
   // 3. write logs to disk
@@ -225,7 +225,7 @@ TEST(BplusTreeLog, concurrency)
     executor.execute([&bplus_trees, &tree_index_generator, i]() {
       RID rid(i, i);
       int tree_index = tree_index_generator.next();
-      ASSERT_EQ(RC::SUCCESS, bplus_trees[tree_index]->insert_entry(reinterpret_cast<const char *>(&i), &rid));
+      ASSERT_EQ(RC::SUCCESS, bplus_trees[tree_index]->insert_entry(reinterpret_cast<const char *>(&i), &rid,0));
     });
   }
 
@@ -237,7 +237,7 @@ TEST(BplusTreeLog, concurrency)
       int operation_index = operation_index_generator.next();
       RID rid(i, i);
       if (0 == operation_index) {
-        bplus_trees[tree_index]->insert_entry(reinterpret_cast<const char *>(&i), &rid);
+        bplus_trees[tree_index]->insert_entry(reinterpret_cast<const char *>(&i), &rid,0);
       } else {
         bplus_trees[tree_index]->delete_entry(reinterpret_cast<const char *>(&i), &rid);
       }

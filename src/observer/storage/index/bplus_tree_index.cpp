@@ -101,9 +101,22 @@ RC BplusTreeIndex::make_entry_key(const char *record, char *&entry_key) {
 
 RC BplusTreeIndex::insert_entry(Record &record, const RID *rid, const int record_size, int field_indexes[])
 {
+  bool is_null = false;
+  // 检查有无null
+  if(field_metas_.size() == 1){
+    memcpy(&is_null, record.data() + record_size - field_indexes[0] -1, 1);
+  } else {
+    for(int i = 0; i < field_metas_.size() && record.len() > record_size; i++){
+      memcpy(&is_null, record.data() + record_size - field_indexes[i] -1, 1);
+      if(is_null == true){
+        break;
+      }
+    }
+  }
+
   char * entry_key;
   make_entry_key(record.data(), entry_key);
-  return index_handler_.insert_entry(entry_key, rid);
+  return index_handler_.insert_entry(entry_key, rid, is_null);
 }
 
 RC BplusTreeIndex::delete_entry(const char *record, const RID *rid)
@@ -113,7 +126,7 @@ RC BplusTreeIndex::delete_entry(const char *record, const RID *rid)
   return index_handler_.delete_entry(entry_key, rid);
 }
 
-RC BplusTreeIndex::update_entry(const char *record, const char *new_record, const RID *rid)
+RC BplusTreeIndex::update_entry(const char *record, const char *new_record, const RID *rid, int record_null)
 {
   char *old_entry_key;
   make_entry_key(record, old_entry_key);
@@ -124,7 +137,7 @@ RC BplusTreeIndex::update_entry(const char *record, const char *new_record, cons
   if (memcmp(old_entry_key, entry_key, entry_length()) == 0) {
     return RC::SUCCESS;
   }
-  return index_handler_.update_entry(old_entry_key, entry_key, rid);
+  return index_handler_.update_entry(old_entry_key, entry_key, rid, record_null);
 }
 
 IndexScanner *BplusTreeIndex::create_scanner(

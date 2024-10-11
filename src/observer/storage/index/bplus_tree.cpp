@@ -1511,7 +1511,7 @@ MemPoolItem::item_unique_ptr BplusTreeHandler::make_key(const char *user_key, co
   return key;
 }
 
-RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
+RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid, bool is_null)
 {
   if (user_key == nullptr || rid == nullptr) {
     LOG_WARN("Invalid arguments, key is empty or rid is empty");
@@ -1540,7 +1540,14 @@ RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
     root_lock_.unlock();
   }
 
-  if (file_header_.unique == 1) {
+  if (file_header_.unique == 1 && is_null == false) {
+    // 其实应该就是只要有NULL就满足唯一性质
+    // CREATE TABLE null_table6(id1 int nullable, id2 int nullable, num int);
+    // CREATE UNIQUE INDEX index_id on null_table6(id1, id2);
+    // INSERT INTO null_table6 VALUES(1,null,1);
+    // INSERT INTO null_table6 VALUES(1,null,2);
+    // - SUCCESS
+    // + FAILURE
     RC rc = try_insert_entry(user_key);
     if (rc != RC::SUCCESS) {
       mem_pool_item_->free(key);
@@ -1910,27 +1917,21 @@ RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
   return rc;
 }
 
-RC BplusTreeHandler::update_entry(const char *old_user_key, const char *user_key, const RID *rid) {
+RC BplusTreeHandler::update_entry(const char *old_user_key, const char *user_key, const RID *rid, int record_null) {
   RC rc = RC::SUCCESS;
   if (old_user_key == nullptr || user_key == nullptr || rid == nullptr) {
     LOG_WARN("Invalid arguments, key is empty or rid is empty");
     return RC::INVALID_ARGUMENT;
   }
-  if (file_header_.unique == 1) {
-    rc = try_insert_entry(user_key);
-    if (rc != RC::SUCCESS) {
-      return rc;
-    }
-  }
-  rc = delete_entry(old_user_key, rid);
+  rc = insert_entry(user_key, rid, record_null);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("Failed to update index due to delete old index.");
+    LOG_WARN("Failed to update index due to insert new index.");
     return rc;
   }
 
-  rc = insert_entry(user_key, rid);
+  rc = delete_entry(old_user_key, rid);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("Failed to update index due to insert new index.");
+    LOG_WARN("Failed to update index due to delete old index.");
     return rc;
   }
   return rc;

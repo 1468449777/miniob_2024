@@ -219,15 +219,13 @@ RC Table::insert_record(Record &record)
   }
 
   rc = insert_entry_of_indexes(record, record.rid());
-  if (rc != RC::SUCCESS) {  // 可能出现了键值重复
-    if (rc != RC::SCHEMA_INDEX_UNIQUE){
-      RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false /*error_on_not_exists*/);
-      if (rc2 != RC::SUCCESS) {
-        LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
-                  name(), rc2, strrc(rc2));
-      }
-    }
-    RC rc2 = record_handler_->delete_record(&record.rid());
+  if (rc != RC::SUCCESS) { // 可能出现了键值重复
+    RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false/*error_on_not_exists*/);
+    // if (rc2 != RC::SUCCESS) {
+    //   LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
+    //             name(), rc2, strrc(rc2));
+    // }
+    rc2 = record_handler_->delete_record(&record.rid());
     if (rc2 != RC::SUCCESS) {
       LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
                 name(), rc2, strrc(rc2));
@@ -543,8 +541,16 @@ RC Table::update_record(Record &record, char *new_record_data, int new_record_le
 RC Table::update_entry_of_indexes(const char *record, const char *new_record, const RID &rid) 
 {
   RC rc = RC::SUCCESS;
+  int record_size = table_meta_.record_size();
   for (Index *index : indexes_) {
-    rc = index->update_entry(record, new_record, &rid);
+    int record_null = 0; 
+    for (FieldMeta field_meta : index->field_metas()) {
+      if (*(bool *)(record + record_size - field_meta.field_id() - 1)) {
+        record_null = 1;
+        break;
+      }
+    }
+    rc = index->update_entry(record, new_record, &rid, record_null);
     if (rc != RC::SUCCESS) {
       return rc;
     }

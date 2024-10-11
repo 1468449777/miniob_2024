@@ -565,7 +565,7 @@ public:
    * 即向索引中插入一个值为（user_key，rid）的键值对
    * @note 这里假设user_key的内存大小与attr_length 一致
    */
-  RC insert_entry(const char *user_key, const RID *rid);
+  RC insert_entry(const char *user_key, const RID *rid, bool is_null);
   /**
    * unique insert
    */
@@ -578,7 +578,8 @@ public:
    */
   RC delete_entry(const char *user_key, const RID *rid);
 
-  RC update_entry(const char *old_user_key, const char *user_key, const RID *rid);
+  RC update_entry(const char *old_user_key, const char *user_key, const RID *rid, int record_null);
+ 
 
   bool is_empty() const;
 
