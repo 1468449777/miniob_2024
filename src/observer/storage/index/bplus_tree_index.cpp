@@ -106,7 +106,7 @@ RC BplusTreeIndex::insert_entry(Record &record, const RID *rid, const int record
   if(field_metas_.size() == 1){
     memcpy(&is_null, record.data() + record_size - field_indexes[0] -1, 1);
   } else {
-    for(int i = 0; i < field_metas_.size() && record.len() > record_size; i++){
+    for(int i = 0; i < field_metas_.size(); i++){
       memcpy(&is_null, record.data() + record_size - field_indexes[i] -1, 1);
       if(is_null == true){
         break;

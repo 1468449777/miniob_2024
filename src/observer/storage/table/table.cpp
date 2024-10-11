@@ -564,8 +564,7 @@ RC Table::insert_entry_of_indexes(Record &record, const RID &rid)
   for (Index *index : indexes_) {
     int field_indexes[20];
     for(int i = 0; i < index->field_metas().size(); i++){
-      const int field_index = this->table_meta().find_field_index_by_name(index->field_metas()[i].name()) - this->table_meta().sys_field_num();
-      field_indexes[i] = field_index;
+      field_indexes[i] = index->field_metas()[i].field_id();
     }
     rc = index->insert_entry(record, &rid, table_meta_.record_size(), field_indexes);
     if (rc != RC::SUCCESS) {
