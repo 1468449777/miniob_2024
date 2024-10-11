@@ -672,8 +672,7 @@ expression:
 
     // 目前无法识别 in (1) 这样类型的例子，也就是如果括号里只有一个值，还是会识别为普通的值表达式
     | LBRACE expression COMMA expression_list RBRACE {
-      $4->emplace_back($2);
-      std::reverse($4->begin(), $4->end());
+      $4->emplace($4->begin(),$2);
       Value values(*$4);
       $$ = new ValueExpr(values);
       $$->set_name(token_name(sql_string, &@$));
