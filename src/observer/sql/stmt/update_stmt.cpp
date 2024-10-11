@@ -93,17 +93,21 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 
     Value result_value;
     bound_expressions[i]->try_get_value(result_value);
-
+    
+    // VALUESLISTS为子查询的结果
     if (result_value.attr_type() == AttrType::VALUESLISTS) {
-      if (result_value.get_valuelist()->size() != 1) {
+      if (result_value.get_valuelist()->size() > 1) {
         // 这里不直接返回错误，原因是 oper 可能一条tuple 也没有，所以还可能返回success。这里将 values 清空以代表 stmt
         // 阶段出现错误 ，其他清空values的作用类似
         values.clear();
         stmt = new UpdateStmt(table, values, 1, filter_stmt);
         return rc;
+      } else if (result_value.get_valuelist()->size() == 0) {
+        result_value.set_null();
+      } else {
+        Value tmp = result_value.get_valuelist()->front();
+        result_value.set_value(tmp);
       }
-      Value tmp = result_value.get_valuelist()->front();
-      result_value.set_value(tmp);
     }
 
     // 检查更新的值类型是否匹配
