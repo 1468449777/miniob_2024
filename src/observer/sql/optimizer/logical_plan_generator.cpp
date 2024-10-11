@@ -251,6 +251,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       case IS_NOT: break;
 
       case LIKE_OP:
+      case NOT_LIKE_OP:
         if (right->value_type() != AttrType::CHARS || left->value_type() != AttrType::CHARS) {
           return RC::ERROR;
         }

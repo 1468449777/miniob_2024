@@ -56,6 +56,7 @@ enum CompOp
   LIKE_OP,
   IN_VALUELIST,
   NOT_IN_VALUELIST,
+  NOT_LIKE_OP,
   NO_OP
 };
 

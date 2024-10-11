@@ -835,6 +835,7 @@ comp_op:
     | LIKE { $$ = LIKE_OP;}
     | IN { $$ = IN_VALUELIST;}
     | NOT IN { $$ = NOT_IN_VALUELIST;}
+    | NOT LIKE {$$ = NOT_LIKE_OP;}
     ;
 
 // your code here

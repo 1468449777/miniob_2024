@@ -103,7 +103,7 @@ public:
 
   int compare(const Value &other) const;
 
-  bool sql_like(Value like_value) const;
+  bool str_like(Value like_value) const;
 
   const char *data() const;
 

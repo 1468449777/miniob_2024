@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/value.h"
 #include "common/lang/limits.h"
 #include "common/value.h"
+#include <cmath>
 
 int FloatType::compare(const Value &left, const Value &right) const
 {
@@ -108,7 +109,7 @@ RC FloatType::cast_to(const Value &val, AttrType type, Value &result) const
     }
 
     case AttrType::INTS: {
-      int int_value = (float)(val.get_float());
+      int int_value = static_cast<int>(std::round(val.get_float()));
       result.set_int(int_value);
       return RC::SUCCESS;
     }

@@ -441,7 +441,7 @@ std::vector<Value> *Value::get_valuelist() { return value_.values; }
 
 std::vector<Value> *Value::get_valuelist() const { return value_.values; }
 
-bool Value::sql_like(Value like_value) const{
+bool Value::str_like(Value like_value) const{
      std::string s1 =this->get_string();
      std::string s2= like_value.get_string();
     std::string pattern = s2;
