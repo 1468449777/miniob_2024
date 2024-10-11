@@ -56,6 +56,7 @@ enum CompOp
   LIKE_OP,
   IN_VALUELIST,
   NOT_IN_VALUELIST,
+  NOT_LIKE_OP,
   NO_OP
 };
 
@@ -93,6 +94,7 @@ struct ConditionSqlNode
   // Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
   // std::shared_ptr<SelectSqlNode>  right_sub_select;
   std::vector<std::unique_ptr<Expression>> right_expression;
+  int conjunction_type;
 };
 
 struct OrderByInfo
@@ -118,8 +120,9 @@ struct SelectSqlNode
   std::vector<std::unique_ptr<Expression>> expressions;  ///< 查询的表达式
   std::vector<std::string>                 relations;    ///< 查询的表
   std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件
+  std::vector<ConditionSqlNode>            group_by_conditions;   ///< 查询条件，使用AND串联起来多个条件
   std::vector<std::unique_ptr<Expression>> group_by;     ///< group by clause
-  OrderByInfo                              order_by;
+  OrderByInfo                              order_by; 
 };
 
 /**
@@ -139,7 +142,7 @@ struct CalcSqlNode
 struct InsertSqlNode
 {
   std::string        relation_name;  ///< Relation to insert into
-  std::vector<Value> values;         ///< 要插入的值
+  std::vector<unique_ptr<Expression>> values;         ///< 要插入的值  , 一个 Expression 为 一个valueExpr，类型为valuelist
 };
 
 /**
@@ -156,8 +159,7 @@ typedef struct
 {
   int            isvalue;   // 更新的值可能为子查询，现在还不支持
   std::string    attribute_name;
-  SelectSqlNode *subselect;
-  Value          value;
+  std::unique_ptr<Expression>  expr;
 } UpdateValueNode;
 
 /**

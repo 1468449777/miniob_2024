@@ -26,6 +26,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/logical_plan_generator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/parser/parse_defs.h"
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -57,10 +58,10 @@ RC SubSelectExpr::get_value(const Tuple &tuple, Value &value) const
   }
 
   rc = oper_->open(nullptr);
-  if(OB_FAIL(rc)){
+  if (OB_FAIL(rc)) {
     return rc;
   }
-  
+
   std::vector<Tuple *> tuples;
 
   value.set_valuelist();
@@ -70,7 +71,7 @@ RC SubSelectExpr::get_value(const Tuple &tuple, Value &value) const
     value.get_valuelist()->push_back(value_tmp);
   }
   oper_->close();
-  if (rc != RC::RECORD_EOF) {           // Rc 不为RECORD_EOF 说明，运行出错
+  if (rc != RC::RECORD_EOF) {  // Rc 不为RECORD_EOF 说明，运行出错
     return rc;
   }
 
@@ -93,4 +94,12 @@ RC SubSelectExpr::set_father_tuple_for_physical_oper(Tuple *tuple, PhysicalOpera
     }
   }
   return rc;
+}
+
+RC SubSelectExpr::try_get_value(Value &value) const
+{
+  RowTuple                     empty_tuple;
+  const std::vector<FieldMeta> fields;
+  empty_tuple.set_schema(subselect_->tables()[0], &fields);
+  return get_value(empty_tuple, value);
 }

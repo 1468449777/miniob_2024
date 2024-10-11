@@ -188,7 +188,7 @@ public:
   int cell_num() const override { return speces_.size(); }
 
   inline bool cell_is_null(const Record &record, const FieldMeta *field_meta) const
-  { 
+  {
     bool result = *(bool *)(record.data() + record.len() - field_meta->field_id() - 1);
     return result;
   }
@@ -448,7 +448,13 @@ public:
 
   RC find_cell(const TupleCellSpec &spec, Value &value) const override
   {
-    RC rc = left_->find_cell(spec, value);
+    RC rc = RC::SUCCESS;
+    if (left_ == nullptr) {  // 当子查询调用 try_to_get-Value（）时，传入的父tuple为nullptr，
+      rc = RC::NOTFOUND;
+    } else {
+      rc = left_->find_cell(spec, value);
+    }
+
     if (rc == RC::SUCCESS || rc != RC::NOTFOUND) {
       return rc;
     }

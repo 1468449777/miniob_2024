@@ -13,10 +13,12 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <algorithm>
+#include <memory>
 
 #include "common/log/log.h"
 #include "common/lang/string.h"
 #include "common/rc.h"
+#include "common/value.h"
 #include "sql/expr/expression.h"
 #include "sql/expr//sub_select_expression.h"
 #include "sql/parser/expression_binder.h"
@@ -345,17 +347,24 @@ RC ExpressionBinder::bind_arithmetic_expression(
     return rc;
   }
 
-  if (child_bound_expressions.size() != 1) {
+  if (child_bound_expressions.size() != 1 && arithmetic_expr->arithmetic_type() != ArithmeticExpr::Type::NEGATIVE) {
     LOG_WARN("invalid right children number of comparison expression: %d", child_bound_expressions.size());
     return RC::INVALID_ARGUMENT;
   }
-
-  unique_ptr<Expression> &right = child_bound_expressions[0];
-  if (right.get() != right_expr.get()) {
-    right_expr.reset(right.release());
+  if (arithmetic_expr->arithmetic_type() != ArithmeticExpr::Type::NEGATIVE) {
+    unique_ptr<Expression> &right = child_bound_expressions[0];
+    if (right.get() != right_expr.get()) {
+      right_expr.reset(right.release());
+    }
+  } else {
+    // 这里的目的是给是计算表达式的右孩子非空，不然后面代码的检查会报错。没有其他实际作用
+    Value tmp;
+    tmp.set_null();
+    ValueExpr *val_expr = new ValueExpr(tmp);
+    right_expr          = std::unique_ptr<Expression>(val_expr);
   }
-
   bound_expressions.emplace_back(std::move(expr));
+
   return RC::SUCCESS;
 }
 
@@ -465,7 +474,8 @@ RC ExpressionBinder::bind_subselect_expression(
   Stmt *select_stmt;
 
   for (auto &it : context_.query_tables()) {
-    unbound_subselect_expr->sub_select_node().father_relations.emplace_back(it->name());          // 将父亲的表 加入到子查询的 表中，以便子查询检查 过滤条件的有效性
+    unbound_subselect_expr->sub_select_node().father_relations.emplace_back(
+        it->name());  // 将父亲的表 加入到子查询的 表中，以便子查询检查 过滤条件的有效性
   }
 
   RC rc =

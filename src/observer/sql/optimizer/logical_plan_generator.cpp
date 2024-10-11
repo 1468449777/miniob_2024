@@ -18,7 +18,9 @@ See the Mulan PSL v2 for more details. */
 #include <cstddef>
 #include <memory>
 
+#include "common/rc.h"
 #include "common/type/attr_type.h"
+#include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
@@ -170,8 +172,20 @@ RC LogicalPlanGenerator::create_plan(
     if (*last_oper) {
       group_by_oper->add_child(std::move(*last_oper));
     }
-
     last_oper = &group_by_oper;
+  }
+
+  unique_ptr<LogicalOperator> group_by_predicate_oper;
+  rc = create_plan(select_stmt->group_by_filter_stmt(), group_by_predicate_oper);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+    return rc;
+  }
+  if (group_by_predicate_oper) {
+    if (*last_oper) {
+      group_by_predicate_oper->add_child(std::move(*last_oper));
+    }
+    last_oper = &group_by_predicate_oper;
   }
 
   auto project_oper = make_unique<ProjectLogicalOperator>(std::move(select_stmt->query_expressions()));
@@ -236,6 +250,13 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       case IS_NULL:
       case IS_NOT: break;
 
+      case LIKE_OP:
+      case NOT_LIKE_OP:
+        if (right->value_type() != AttrType::CHARS || left->value_type() != AttrType::CHARS) {
+          return RC::ERROR;
+        }
+        break;
+
       case IN_VALUELIST:
         if (right->value_type() != AttrType::VALUESLISTS) {
           return RC::UNSUPPORTED;
@@ -296,8 +317,13 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
   }
 
   unique_ptr<PredicateLogicalOperator> predicate_oper;
+
+  // 目前ConjunctionExpr::Type 要么全为AND，要么全为OR.这里不能取filter_units 的第一个，因为一定为AND
   if (!cmp_exprs.empty()) {
-    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
+    ConjunctionExpr::Type       type = filter_stmt->filter_units().back()->conjunction_type() == 0
+                                           ? ConjunctionExpr::Type::AND
+                                           : ConjunctionExpr::Type::OR;
+    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(type, cmp_exprs));
     predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
   }
 
@@ -316,7 +342,8 @@ int LogicalPlanGenerator::implicit_cast_cost(AttrType from, AttrType to)
 RC LogicalPlanGenerator::create_plan(InsertStmt *insert_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
   Table        *table = insert_stmt->table();
-  vector<Value> values(insert_stmt->values(), insert_stmt->values() + insert_stmt->value_amount());
+  vector<Value> values;
+  values.swap(insert_stmt->values()[0]);
 
   InsertLogicalOperator *insert_operator = new InsertLogicalOperator(table, values);
   logical_operator.reset(insert_operator);
@@ -423,6 +450,13 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   // collect all aggregate expressions
   for (unique_ptr<Expression> &expression : query_expressions) {
     collector(expression);
+  }
+
+  // collect aggregate expressions in having_conditions
+
+  for (auto &filter_unit : select_stmt->group_by_filter_stmt()->filter_units()) {
+    collector(filter_unit->left().expr);
+    collector(filter_unit->right().expr);
   }
 
   if (group_by_expressions.empty() && aggregate_expressions.empty()) {

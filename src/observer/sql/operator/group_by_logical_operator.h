@@ -32,4 +32,5 @@ public:
 private:
   std::vector<std::unique_ptr<Expression>> group_by_expressions_;
   std::vector<Expression *>                aggregate_expressions_;  ///< 输出的表达式，可能包含聚合函数
+  // std::vector<std::unique_ptr<Expression>> predicates_;
 };

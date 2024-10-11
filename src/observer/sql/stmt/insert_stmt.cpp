@@ -14,14 +14,19 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/stmt/insert_stmt.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
+#include "common/value.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include "sql/expr/expression.h"
 
-InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount)
-    : table_(table), values_(values), value_amount_(value_amount)
-{}
+InsertStmt::InsertStmt(Table *table, std::vector<std::vector<Value>> &multi_values, int value_amount)
+    : table_(table), value_amount_(value_amount)
+{
+  multi_values_.swap(multi_values);
+}
 
-RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
+RC InsertStmt::create(Db *db, InsertSqlNode &inserts, Stmt *&stmt)
 {
   const char *table_name = inserts.relation_name.c_str();
   if (nullptr == db || nullptr == table_name || inserts.values.empty()) {
@@ -38,8 +43,25 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   // check the fields number
-  const Value     *values     = inserts.values.data();
-  const int        value_num  = static_cast<int>(inserts.values.size());
+  std::vector<std::unique_ptr<Expression>> values_expressions;
+  std::vector<std::vector<Value>>          multi_values;
+  values_expressions.swap(inserts.values);
+
+  // 目前只实现插入一条，所以只检查第一个
+  if (values_expressions.front()->type() != ExprType::VALUE) {
+    return RC::ERROR;
+  }
+  Value valuelists;
+  values_expressions.front()->try_get_value(valuelists);
+  if (valuelists.attr_type() == AttrType::VALUESLISTS) {
+    multi_values.emplace_back();  // 新增一行
+    multi_values[0].swap(*valuelists.get_valuelist());
+  } else {
+    multi_values.emplace_back();
+    multi_values[0].push_back(valuelists);
+  }
+
+  int              value_num  = multi_values[0].size();
   const TableMeta &table_meta = table->table_meta();
   const int        field_num  = table_meta.field_num() - table_meta.sys_field_num();
   if (field_num != value_num) {
@@ -48,6 +70,6 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   // everything alright
-  stmt = new InsertStmt(table, values, value_num);
+  stmt = new InsertStmt(table, multi_values, value_num);
   return RC::SUCCESS;
 }

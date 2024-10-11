@@ -127,6 +127,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         HAVING
         IN
         LIKE
+        OR
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -174,8 +175,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <rel_attr>            rel_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
-%type <value_list>          value_list
+/*  %type <value_list>          value_list  */
 %type <condition_list>      where
+%type <condition_list>      having_condition
 %type <condition_list>      condition_list
 %type <string>              storage_format
 %type <relation_list>       rel_list
@@ -413,7 +415,7 @@ attr_def:
       $$->name = $1;
       $$->length = $4;
       free($1);
-      $$->can_be_null = false;
+      $$->can_be_null = true;
     }
     | ID type
     {
@@ -422,7 +424,7 @@ attr_def:
       $$->name = $1;
       $$->length = 4;
       free($1);
-      $$->can_be_null = false;
+      $$->can_be_null = true;
     }
     |
     ID type LBRACE number RBRACE NULLABLE
@@ -494,18 +496,19 @@ type:
     | DATE_T { $$ = static_cast<int>(AttrType::DATES); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE  value_list RBRACE 
+    INSERT INTO ID VALUES   expression_list  
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
-      if ($6 != nullptr) {
-        $$->insertion.values.swap(*$6);
-        delete $6;
+      if ($5 != nullptr) {
+        $$->insertion.values.swap(*$5);
+        delete $5;
       }
-      std::reverse($$->insertion.values.begin(), $$->insertion.values.end());
       free($3);
     }
     ;
+
+    /*
 value_list:
     value
     {
@@ -524,7 +527,7 @@ value_list:
       delete $1;
     }
     ;
-
+*/
 value:
     NUMBER {
       $$ = new Value((int)$1);
@@ -585,7 +588,7 @@ update_stmt:      /*  update 语句的语法解析树*/
       }
       
 
-      $$->update.update_values.push_back(*$4);
+      $$->update.update_values.push_back(std::move(*$4));
 
 
       if ($6 != nullptr) {
@@ -607,21 +610,19 @@ update_values:
         else{
           $$=$3;
         }
-        $$->emplace_back(*$2);
+        $$->push_back(std::move(*$2));
       };
 
 update_value:
-    ID EQ value{
+    ID EQ expression{
       UpdateValueNode *updatevalue =new UpdateValueNode();
-      updatevalue->isvalue=1;
       updatevalue->attribute_name = $1;
-      updatevalue->value = *$3;
+      updatevalue->expr = std::unique_ptr<Expression>($3);
       $$ = updatevalue;
-      delete($3);
     };
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM rel_list where group_by  order_by_info
+    SELECT expression_list FROM rel_list where group_by having_condition order_by_info
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -645,9 +646,14 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
 
       if ($7 != nullptr) {
-        $$->selection.order_by.order_by_attrs.swap($7->order_by_attrs);
-        $$->selection.order_by.order_by_types.swap($7->order_by_types);
+        $$->selection.group_by_conditions.swap(*$7);
         delete $7;
+      }
+
+      if ($8 != nullptr) {
+        $$->selection.order_by.order_by_attrs.swap($8->order_by_attrs);
+        $$->selection.order_by.order_by_types.swap($8->order_by_types);
+        delete $8;
       }
 
     }
@@ -704,15 +710,12 @@ expression:
     }
 
     // 目前无法识别 in (1) 这样类型的例子，也就是如果括号里只有一个值，还是会识别为普通的值表达式
-    | LBRACE value COMMA value_list RBRACE {
-      Value values;
-      values.set_valuelist();
-      values.get_valuelist()->swap(*$4);
-      values.get_valuelist()->emplace_back(*$2);
+    | LBRACE expression COMMA expression_list RBRACE {
+      $4->emplace($4->begin(),$2);
+      Value values(*$4);
       $$ = new ValueExpr(values);
       $$->set_name(token_name(sql_string, &@$));
-      delete $2;
-      delete $4;
+      delete $4; // 不用delete $2 因为 $2 包含在$4里
     }
     | rel_attr {
       RelAttrSqlNode *node = $1;
@@ -812,17 +815,36 @@ where:
       $$ = $2;  
     }
     ;
+
+having_condition:
+        /* empty */
+    {
+      $$ = nullptr;
+    }
+    |
+    HAVING condition_list {
+      $$ = $2;  
+    }
+    ;
+
 condition_list:
     /* empty */
     {
       $$ = nullptr;
     }
     | condition {
+      $1->conjunction_type = 0;
       $$ = new std::vector<ConditionSqlNode>;
       $$->push_back(std::move(*$1));
     }
     | condition AND condition_list {
       $$ = $3;
+      $1->conjunction_type = 0;
+      $$->push_back(std::move(*$1));
+    }
+    | condition OR condition_list {
+      $$ = $3;
+      $1->conjunction_type = 1;
       $$->push_back(std::move(*$1));
     }
     ;
@@ -851,6 +873,7 @@ comp_op:
     | LIKE { $$ = LIKE_OP;}
     | IN { $$ = IN_VALUELIST;}
     | NOT IN { $$ = NOT_IN_VALUELIST;}
+    | NOT LIKE {$$ = NOT_LIKE_OP;}
     ;
 
 // your code here

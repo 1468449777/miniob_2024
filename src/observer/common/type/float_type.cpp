@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/value.h"
 #include "common/lang/limits.h"
 #include "common/value.h"
+#include <cmath>
 
 int FloatType::compare(const Value &left, const Value &right) const
 {
@@ -35,26 +36,42 @@ int FloatType::compare(const Value &left, const Value &right) const
 
 RC FloatType::add(const Value &left, const Value &right, Value &result) const
 {
-  result.set_float(left.get_float() + right.get_float());
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+  } else {
+    result.set_float(left.get_float() + right.get_float());
+  }
   return RC::SUCCESS;
 }
 RC FloatType::subtract(const Value &left, const Value &right, Value &result) const
 {
-  result.set_float(left.get_float() - right.get_float());
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+  } else {
+    result.set_float(left.get_float() - right.get_float());
+  }
   return RC::SUCCESS;
 }
 RC FloatType::multiply(const Value &left, const Value &right, Value &result) const
 {
-  result.set_float(left.get_float() * right.get_float());
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+  } else {
+    result.set_float(left.get_float() * right.get_float());
+  }
   return RC::SUCCESS;
 }
 
 RC FloatType::divide(const Value &left, const Value &right, Value &result) const
 {
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   if (right.get_float() > -EPSILON && right.get_float() < EPSILON) {
     // NOTE:
     // 设置为浮点数最大值是不正确的。通常的做法是设置为NULL，但是当前的miniob没有NULL概念，所以这里设置为浮点数最大值。
-    result.set_float(numeric_limits<float>::max());
+    result.set_null();
   } else {
     result.set_float(left.get_float() / right.get_float());
   }
@@ -63,7 +80,11 @@ RC FloatType::divide(const Value &left, const Value &right, Value &result) const
 
 RC FloatType::negative(const Value &val, Value &result) const
 {
-  result.set_float(-val.get_float());
+  if (val.is_null()) {
+    result.set_null();
+  } else {
+    result.set_float(-val.get_float());
+  }
   return RC::SUCCESS;
 }
 
@@ -90,4 +111,34 @@ RC FloatType::to_string(const Value &val, string &result) const
   ss << common::double_to_str(val.value_.float_value_);
   result = ss.str();
   return RC::SUCCESS;
+}
+
+RC FloatType::cast_to(const Value &val, AttrType type, Value &result) const
+{
+
+  switch (type) {
+    case AttrType::CHARS: {
+      string char_value = val.get_string().c_str();
+      result.set_string(char_value.c_str(), char_value.size());
+      return RC::SUCCESS;
+    }
+
+    case AttrType::FLOATS: {
+      result = val;
+      return RC::SUCCESS;
+    }
+
+    case AttrType::INTS: {
+      int int_value = static_cast<int>(std::round(val.get_float()));
+      result.set_int(int_value);
+      return RC::SUCCESS;
+    }
+    case AttrType::BOOLEANS:
+    case AttrType::DATES:
+    case AttrType::NULLS:
+    case AttrType::VALUESLISTS:
+    case AttrType::MAXTYPE:
+
+    default: return RC::UNIMPLEMENTED;
+  }
 }
