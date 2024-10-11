@@ -142,7 +142,7 @@ struct CalcSqlNode
 struct InsertSqlNode
 {
   std::string        relation_name;  ///< Relation to insert into
-  std::vector<Value> values;         ///< 要插入的值
+  std::vector<unique_ptr<Expression>> values;         ///< 要插入的值  , 一个 Expression 为 一个valueExpr，类型为valuelist
 };
 
 /**

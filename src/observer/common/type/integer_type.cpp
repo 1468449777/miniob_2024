@@ -38,25 +38,42 @@ int IntegerType::compare(const Value &left, const Value &right) const
 
 RC IntegerType::add(const Value &left, const Value &right, Value &result) const
 {
-  result.set_int(left.get_int() + right.get_int());
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+  } else {
+    result.set_int(left.get_int() + right.get_int());
+  }
+
   return RC::SUCCESS;
 }
 
 RC IntegerType::subtract(const Value &left, const Value &right, Value &result) const
 {
-  result.set_int(left.get_int() - right.get_int());
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+  } else {
+    result.set_int(left.get_int() - right.get_int());
+  }
   return RC::SUCCESS;
 }
 
 RC IntegerType::multiply(const Value &left, const Value &right, Value &result) const
 {
-  result.set_int(left.get_int() * right.get_int());
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+  } else {
+    result.set_int(left.get_int() * right.get_int());
+  }
   return RC::SUCCESS;
 }
 
 RC IntegerType::negative(const Value &val, Value &result) const
 {
-  result.set_int(-val.get_int());
+  if (val.is_null()) {
+    result.set_null();
+  } else {
+    result.set_int(-val.get_int());
+  }
   return RC::SUCCESS;
 }
 
@@ -121,4 +138,20 @@ int IntegerType::cast_cost(AttrType type)
     return 1;
   }
   return INT32_MAX;
+}
+
+RC IntegerType::divide(const Value &left, const Value &right, Value &result) const
+{
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
+  if (right.get_float() > -EPSILON && right.get_float() < EPSILON) {
+    // NOTE:
+    // 设置为浮点数最大值是不正确的。通常的做法是设置为NULL，但是当前的miniob没有NULL概念，所以这里设置为浮点数最大值。
+    result.set_null();
+  } else {
+    result.set_float(left.get_float() / right.get_float());
+  }
+  return RC::SUCCESS;
 }

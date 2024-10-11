@@ -173,7 +173,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <rel_attr>            rel_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
-%type <value_list>          value_list
+/*  %type <value_list>          value_list  */
 %type <condition_list>      where
 %type <condition_list>      having_condition
 %type <condition_list>      condition_list
@@ -457,18 +457,19 @@ type:
     | DATE_T { $$ = static_cast<int>(AttrType::DATES); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE  value_list RBRACE 
+    INSERT INTO ID VALUES   expression_list  
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
-      if ($6 != nullptr) {
-        $$->insertion.values.swap(*$6);
-        delete $6;
+      if ($5 != nullptr) {
+        $$->insertion.values.swap(*$5);
+        delete $5;
       }
-      std::reverse($$->insertion.values.begin(), $$->insertion.values.end());
       free($3);
     }
     ;
+
+    /*
 value_list:
     value
     {
@@ -487,7 +488,7 @@ value_list:
       delete $1;
     }
     ;
-
+*/
 value:
     NUMBER {
       $$ = new Value((int)$1);
@@ -670,15 +671,13 @@ expression:
     }
 
     // 目前无法识别 in (1) 这样类型的例子，也就是如果括号里只有一个值，还是会识别为普通的值表达式
-    | LBRACE value COMMA value_list RBRACE {
-      Value values;
-      values.set_valuelist();
-      values.get_valuelist()->swap(*$4);
-      values.get_valuelist()->emplace_back(*$2);
+    | LBRACE expression COMMA expression_list RBRACE {
+      $4->emplace_back($2);
+      std::reverse($4->begin(), $4->end());
+      Value values(*$4);
       $$ = new ValueExpr(values);
       $$->set_name(token_name(sql_string, &@$));
-      delete $2;
-      delete $4;
+      delete $4; // 不用delete $2 因为 $2 包含在$4里
     }
     | rel_attr {
       RelAttrSqlNode *node = $1;

@@ -23,6 +23,7 @@ See the Mulan PSL v2 for more details. */
 #include <cstdint>
 #include <vector>
 #include <regex>
+#include "sql/expr/expression.h"
 
 Value::Value(int val) { set_int(val); }
 
@@ -40,6 +41,17 @@ Value::Value(const char *s, int len /*= 0*/)
     default: set_string(s, len);
   }
 }
+
+Value::Value( std::vector<std::unique_ptr<Expression>> &value_exprs)
+{
+   set_valuelist();
+   Value tmp_value;
+   for(auto &expr: value_exprs){
+      expr->try_get_value(tmp_value);
+      value_.values->push_back(tmp_value);
+   }
+}
+
 Value::Value(const Value &other)
 {
   this->attr_type_ = other.attr_type_;

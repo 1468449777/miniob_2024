@@ -31,6 +31,8 @@ See the Mulan PSL v2 for more details. */
  * 当需要对值做运算时，建议使用类似 Value::add 的操作而不是 DataType::add。在进行运算前，应该设置好结果的类型，
  * 比如进行两个INT类型的除法运算时，结果类型应该设置为FLOAT。
  */
+
+class Expression;
 class Value final
 {
 public:
@@ -53,7 +55,7 @@ public:
   explicit Value(float val);
   explicit Value(bool val);
   explicit Value(const char *s, int len = 0);
-
+  explicit Value( std::vector<std::unique_ptr<Expression>> &value_exprs);
   Value(const Value &other);
   Value(Value &&other);
 
