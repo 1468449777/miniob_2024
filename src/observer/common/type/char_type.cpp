@@ -10,6 +10,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/lang/comparator.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "common/type/char_type.h"
 #include "common/value.h"
 #include <cstdint>
@@ -46,6 +47,18 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       result = Value(ans);
     }
     break;
+    case AttrType::FLOATS : {
+      std::string s = val.get_string();
+      float ans = 0.0;
+      int end = 0;
+      while (end < s.length() && (s[end] >= '0' && s[end] <= '9')) 
+        end++;
+      for (int i = 0; i < end; i++) {
+        ans = ans * 10 + (s[i] - '0');
+      }
+      result = Value(ans);
+    }
+    break;
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;
@@ -57,6 +70,9 @@ int CharType::cast_cost(AttrType type)
     return 0;
   }
   if (type == AttrType::INTS) {
+    return 10;
+  }
+  if (type == AttrType::FLOATS) {
     return 10;
   }
   return INT32_MAX;
