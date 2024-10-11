@@ -150,6 +150,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   const char *                               const_string;
   int                                        number;
   float                                      floats;
+  std::vector<std::string> *                 IDList;
   std::vector<UpdateValueNode> *             update_values;
   UpdateValueNode *                          update_value;
   SelectSqlNode *                            sub_select;
@@ -178,16 +179,17 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <condition_list>      condition_list
 %type <string>              storage_format
 %type <relation_list>       rel_list
+%type <expression>          expression_value_list
 %type <expression>          expression
 %type <order_by_info>       order_by_expression_list
 %type <order_by_info>       order_by_info
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
 %type <order_by_type>       order_by_type
-%type <update_values>        update_values
-%type <update_value>         update_value
+%type <update_values>       update_values
+%type <update_value>        update_value
 %type <sub_select>          sub_select 
-
+%type <IDList>              IDList
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
@@ -304,31 +306,55 @@ desc_table_stmt:
     ;
 
 create_index_stmt:    /*create index 语句的语法解析树*/
-    CREATE INDEX ID ON ID LBRACE ID RBRACE
+    CREATE INDEX ID ON ID LBRACE ID IDList RBRACE
     {
       $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
       CreateIndexSqlNode &create_index = $$->create_index;
       create_index.index_name = $3;
       create_index.relation_name = $5;
-      create_index.attribute_name = $7;
-      create_index.is_unique = 0;
+      if ($8 != nullptr) {
+        $$->create_index.attribute_name.swap(*$8);
+      }
+      create_index.attribute_name.push_back($7);
+      std::reverse($$->create_index.attribute_name.begin(), $$->create_index.attribute_name.end());
       free($3);
       free($5);
       free($7);
     }
-    | CREATE UNIQUE INDEX ID ON ID LBRACE ID RBRACE
+    | CREATE UNIQUE INDEX ID ON ID LBRACE ID IDList RBRACE
     {
       $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
       CreateIndexSqlNode &create_index = $$->create_index;
       create_index.index_name = $4;
       create_index.relation_name = $6;
-      create_index.attribute_name = $8;
       create_index.is_unique = 1;
+
+      if ($9 != nullptr) {
+        $$->create_index.attribute_name.swap(*$9);
+      }
+      create_index.attribute_name.push_back($8);
+      std::reverse($$->create_index.attribute_name.begin(), $$->create_index.attribute_name.end());
       free($4);
       free($6);
       free($8);
     }
     ;
+
+IDList:
+        {
+          $$ =nullptr;
+        }     |
+      COMMA ID IDList{
+        if($3==nullptr){
+          $$= new std::vector<string>;
+        }
+        else{
+          $$=$3;
+        }
+        $$->push_back($2);
+        free($2);
+      }
+      ;
 
 drop_index_stmt:      /*drop index 语句的语法解析树*/
     DROP INDEX ID ON ID
@@ -672,10 +698,13 @@ expression:
     | '-' expression %prec UMINUS {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
-    | value {
+    /* | value {
       $$ = new ValueExpr(*$1);
       $$->set_name(token_name(sql_string, &@$));
       delete $1;
+    } */
+    | expression_value_list {
+      $$ = $1;
     }
 
     // 目前无法识别 in (1) 这样类型的例子，也就是如果括号里只有一个值，还是会识别为普通的值表达式
@@ -721,6 +750,20 @@ expression:
     }
 
 
+    ;
+
+expression_value_list:
+    value {
+        $$ = new ValueExpr(*$1);
+        $$->set_name(token_name(sql_string, &@$));
+        delete $1;
+    }
+    | expression_value_list value {
+        auto sum_expr = new ValueExpr(*$2);
+        delete $2;
+        
+        $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, sum_expr, $1, sql_string, &@$);
+    }
     ;
 
 aggregate_type:

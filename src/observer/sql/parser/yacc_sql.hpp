@@ -153,11 +153,12 @@ union YYSTYPE
   const char *                               const_string;
   int                                        number;
   float                                      floats;
+  std::vector<std::string> *                 IDList;
   std::vector<UpdateValueNode> *             update_values;
   UpdateValueNode *                          update_value;
   SelectSqlNode *                            sub_select;
 
-#line 161 "yacc_sql.hpp"
+#line 162 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
