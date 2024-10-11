@@ -1857,9 +1857,11 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
     if (OB_FAIL(rc)) {
       if (rc == RC::EMPTY) {
         current_frame_ = nullptr;
+        latch_memo.release();
         return RC::SUCCESS;
       }
       
+      latch_memo.release();
       LOG_WARN("failed to find left most page. rc=%s", strrc(rc));
       return rc;
     }
@@ -1872,6 +1874,7 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
       bool should_inclusive_after_fix = false;
       rc = fix_user_key(left_user_key, left_len, true /*greater*/, &fixed_left_key, &should_inclusive_after_fix);
       if (OB_FAIL(rc)) {
+        latch_memo.release();
         LOG_WARN("failed to fix left user key. rc=%s", strrc(rc));
         return rc;
       }
@@ -1899,9 +1902,11 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
     if (rc == RC::EMPTY) {
       rc             = RC::SUCCESS;
       current_frame_ = nullptr;
+      latch_memo.release();
       return rc;
     } else if (OB_FAIL(rc)) {
       LOG_WARN("failed to find left page. rc=%s", strrc(rc));
+      latch_memo.release();
       return rc;
     }
 
@@ -1913,12 +1918,14 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
       if (next_page_num == BP_INVALID_PAGE_NUM) {  // 这里已经是最后一页，说明当前扫描，没有数据
         latch_memo.release();
         current_frame_ = nullptr;
+        latch_memo.release();
         return RC::SUCCESS;
       }
 
       rc = latch_memo.get_page(next_page_num, current_frame_);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to fetch next page. page num=%d, rc=%s", next_page_num, strrc(rc));
+        latch_memo.release();
         return rc;
       }
       latch_memo.slatch(current_frame_);
@@ -1939,6 +1946,7 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
       rc = fix_user_key(right_user_key, right_len, false /*want_greater*/, &fixed_right_key, &should_include_after_fix);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to fix right user key. rc=%s", strrc(rc));
+        latch_memo.release();
         return rc;
       }
 
@@ -1962,6 +1970,7 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
     current_frame_ = nullptr;
   }
 
+  latch_memo.release();
   return RC::SUCCESS;
 }
 

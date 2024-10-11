@@ -71,7 +71,17 @@ public:
 
 public:
   const std::vector<FilterUnit *> &filter_units() const { return filter_units_; }
+  void add_filter_unit(FilterUnit *filter_unit) {
+    filter_units_.emplace_back(filter_unit);
+  }
 
+  RC remove_filter_unit(size_t index) {
+    if (index >= filter_units_.size()) {
+      return RC::ERROR;
+    }
+    filter_units_.erase(filter_units_.begin() + index);
+    return RC::SUCCESS;
+  }
 public:
   // 目前 这个father_tables 只有select支持，其他的不确定有没有影响
   static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,

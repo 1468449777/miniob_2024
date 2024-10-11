@@ -102,6 +102,11 @@ struct OrderByInfo
   std::vector<OrderByType>                 order_by_types;
 };
 
+struct JoinEntry {
+  std::string join_table;
+  std::vector<ConditionSqlNode> join_conditions;
+  // JoinEntry() : join_table {""}, join_conditions {std::vector<ConditionSqlNode>{}} {}
+};
 /**
  * @brief 描述一个select语句
  * @ingroup SQLParser
@@ -121,6 +126,7 @@ struct SelectSqlNode
   std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件
   std::vector<ConditionSqlNode>            group_by_conditions;   ///< 查询条件，使用AND串联起来多个条件
   std::vector<std::unique_ptr<Expression>> group_by;     ///< group by clause
+  std::vector<JoinEntry>                   join_info;
   OrderByInfo                              order_by; 
 };
 
