@@ -47,6 +47,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression_iterator.h"
 #include "sql/stmt/update_stmt.h"
+#include <unordered_set>
 
 using namespace std;
 using namespace common;
@@ -112,9 +113,44 @@ RC LogicalPlanGenerator::create_plan(
   last_oper = &table_oper;
 
   const std::vector<Table *> &tables = select_stmt->tables();
+
+  std::unordered_set<std::string> table_set;
+  FilterStmt *filter_stmt = select_stmt->filter_stmt();
+  
+  auto check = [&](FilterUnit *cond) -> bool {
+    bool ans = true;
+    if (cond->left().expr->type() != ExprType::FIELD && cond->left().expr->type() != ExprType::VALUE) {
+      return false;
+    }
+    if (cond->right().expr->type() != ExprType::FIELD && cond->right().expr->type() != ExprType::VALUE) {
+      return false;
+    }
+    if (cond->left().expr->type() == ExprType::FIELD) {
+      FieldExpr *field_expr = dynamic_cast<FieldExpr *>(cond->left().expr.get());
+      ans &= (table_set.count(field_expr->table_name()));
+    }
+    if (cond->right().expr->type() == ExprType::FIELD) {
+      FieldExpr *field_expr = dynamic_cast<FieldExpr *>(cond->right().expr.get());
+      ans &= (table_set.count(field_expr->table_name()));
+    }
+    return ans;
+  };
+
+
   for (Table *table : tables) {
+    const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
 
     unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
+    table_set.insert(table->name());
+
+    FilterStmt *cur_stmt = new FilterStmt;
+    for (int i = 0; i < filter_units.size(); ++i) {
+      if (check(filter_units[i])) {
+        cur_stmt->add_filter_unit(filter_units[i]);
+        filter_stmt->remove_filter_unit(i);
+      }
+    }
+
     if (table_oper == nullptr) {
       table_oper = std::move(table_get_oper);
     } else {
@@ -122,6 +158,17 @@ RC LogicalPlanGenerator::create_plan(
       join_oper->add_child(std::move(table_oper));
       join_oper->add_child(std::move(table_get_oper));
       table_oper = unique_ptr<LogicalOperator>(join_oper);
+    }
+    
+    std::unique_ptr<LogicalOperator> predicate_oper;
+    RC rc = create_plan(cur_stmt, predicate_oper);
+    if (OB_FAIL(rc)) {
+      LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+      return rc;
+    }
+    if (predicate_oper) {
+      predicate_oper->add_child(std::move(table_oper));
+      table_oper = std::move(predicate_oper);
     }
   }
 
