@@ -376,7 +376,7 @@ attr_def:
       $$->name = $1;
       $$->length = $4;
       free($1);
-      $$->can_be_null = false;
+      $$->can_be_null = true;
     }
     | ID type
     {
@@ -385,7 +385,7 @@ attr_def:
       $$->name = $1;
       $$->length = 4;
       free($1);
-      $$->can_be_null = false;
+      $$->can_be_null = true;
     }
     |
     ID type LBRACE number RBRACE NULLABLE

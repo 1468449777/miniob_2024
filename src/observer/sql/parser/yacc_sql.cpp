@@ -1960,7 +1960,7 @@ yyreduce:
       (yyval.attr_info)->name = (yyvsp[-4].string);
       (yyval.attr_info)->length = (yyvsp[-1].number);
       free((yyvsp[-4].string));
-      (yyval.attr_info)->can_be_null = false;
+      (yyval.attr_info)->can_be_null = true;
     }
 #line 1966 "yacc_sql.cpp"
     break;
@@ -1973,7 +1973,7 @@ yyreduce:
       (yyval.attr_info)->name = (yyvsp[-1].string);
       (yyval.attr_info)->length = 4;
       free((yyvsp[-1].string));
-      (yyval.attr_info)->can_be_null = false;
+      (yyval.attr_info)->can_be_null = true;
     }
 #line 1979 "yacc_sql.cpp"
     break;
