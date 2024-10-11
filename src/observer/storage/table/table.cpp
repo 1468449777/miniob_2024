@@ -177,19 +177,24 @@ RC Table::open(Db *db, const char *meta_file, const char *base_dir)
   const int index_num = table_meta_.index_num();
   for (int i = 0; i < index_num; i++) {
     const IndexMeta *index_meta = table_meta_.index(i);
-    const FieldMeta *field_meta = table_meta_.field(index_meta->field());
-    if (field_meta == nullptr) {
-      LOG_ERROR("Found invalid index meta info which has a non-exists field. table=%s, index=%s, field=%s",
-                name(), index_meta->name(), index_meta->field());
-      // skip cleanup
-      //  do all cleanup action in destructive Table function
-      return RC::INTERNAL;
+    const FieldMeta *field_metas[index_meta->field_num()];
+    for(int i = 0; i < index_meta->field_num(); ++i){
+      field_metas[i] = table_meta_.field(index_meta->field(i));
+      if (field_metas[i] == nullptr) {
+        LOG_ERROR("Found invalid index meta info which has a non-exists field. table=%s, index=%s, field=%s",
+            name(),
+            index_meta->name(),
+            index_meta->field(i));
+        // skip cleanup
+        //  do all cleanup action in destructive Table function
+        return RC::GENERIC_ERROR;
+      }
     }
 
     BplusTreeIndex *index      = new BplusTreeIndex();
     string          index_file = table_index_file(base_dir, name(), index_meta->name());
 
-    rc = index->open(this, index_file.c_str(), *index_meta, *field_meta);
+    rc = index->open(this, index_file.c_str(), *index_meta, field_metas, index_meta->field_num());
     if (rc != RC::SUCCESS) {
       delete index;
       LOG_ERROR("Failed to open index. table=%s, index=%s, file=%s, rc=%s",
@@ -213,7 +218,7 @@ RC Table::insert_record(Record &record)
     return rc;
   }
 
-  rc = insert_entry_of_indexes(record.data(), record.rid());
+  rc = insert_entry_of_indexes(record, record.rid());
   if (rc != RC::SUCCESS) {  // 可能出现了键值重复
     if (rc != RC::SCHEMA_INDEX_UNIQUE){
       RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false /*error_on_not_exists*/);
@@ -256,7 +261,7 @@ RC Table::recover_insert_record(Record &record)
     return rc;
   }
 
-  rc = insert_entry_of_indexes(record.data(), record.rid());
+  rc = insert_entry_of_indexes(record, record.rid());
   if (rc != RC::SUCCESS) {  // 可能出现了键值重复
     RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false /*error_on_not_exists*/);
     if (rc2 != RC::SUCCESS) {
@@ -382,27 +387,32 @@ RC Table::get_chunk_scanner(ChunkFileScanner &scanner, Trx *trx, ReadWriteMode m
   return rc;
 }
 
-RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name, int unique)
+RC Table::create_index(Trx *trx, vector<const FieldMeta *> field_meta, const char *index_name, int unique)
 {
-  if (common::is_blank(index_name) || nullptr == field_meta) {
+  if (common::is_blank(index_name) || nullptr == index_name) {
     LOG_INFO("Invalid input arguments, table name is %s, index_name is blank or attribute_name is blank", name());
     return RC::INVALID_ARGUMENT;
   }
 
+  const int attr_num = field_meta.size();
+  const FieldMeta *field_metas[attr_num];
+  for (int i = 0; i < attr_num; ++i) {
+    field_metas[i] = field_meta[i];
+  }
+
   IndexMeta new_index_meta;
 
-  RC rc = new_index_meta.init(index_name, *field_meta, unique);
+  RC rc = new_index_meta.init(index_name, field_metas, attr_num, unique);
   if (rc != RC::SUCCESS) {
     LOG_INFO("Failed to init IndexMeta in table:%s, index_name:%s, field_name:%s", 
-             name(), index_name, field_meta->name());
+             name(), index_name, field_metas[0]->name());
     return rc;
   }
 
   // 创建索引相关数据
   BplusTreeIndex *index      = new BplusTreeIndex();
   string          index_file = table_index_file(base_dir_.c_str(), name(), index_name);
-
-  rc = index->create(this, index_file.c_str(), new_index_meta, *field_meta);
+  rc = index->create(this, index_file.c_str(), new_index_meta, field_metas, attr_num);
   if (rc != RC::SUCCESS) {
     delete index;
     LOG_ERROR("Failed to create bplus tree index. file name=%s, rc=%d:%s", index_file.c_str(), rc, strrc(rc));
@@ -420,11 +430,16 @@ RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_
 
   Record record;
   while (OB_SUCC(rc = scanner.next(record))) {
-    rc = index->insert_entry(record.data(), &record.rid());
+    int field_indexes[20];
+    for(int i = 0; i < index->field_metas().size(); i++){
+      const int field_index = this->table_meta().find_field_index_by_name(index->field_metas()[i].name()) - this->table_meta().sys_field_num();
+      field_indexes[i] = field_index;
+    }
+    rc = index->insert_entry(record, &record.rid(), table_meta_.record_size(), field_indexes);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to insert record into index while creating index. table=%s, index=%s, rc=%s",
                name(), index_name, strrc(rc));
-      return rc;
+      return rc;         
     }
   }
   if (RC::RECORD_EOF == rc) {
@@ -537,11 +552,16 @@ RC Table::update_entry_of_indexes(const char *record, const char *new_record, co
   return rc;
 }
 
-RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
+RC Table::insert_entry_of_indexes(Record &record, const RID &rid)
 {
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
-    rc = index->insert_entry(record, &rid);
+    int field_indexes[20];
+    for(int i = 0; i < index->field_metas().size(); i++){
+      const int field_index = this->table_meta().find_field_index_by_name(index->field_metas()[i].name()) - this->table_meta().sys_field_num();
+      field_indexes[i] = field_index;
+    }
+    rc = index->insert_entry(record, &rid, table_meta_.record_size(), field_indexes);
     if (rc != RC::SUCCESS) {
       break;
     }

@@ -42,13 +42,15 @@ public:
 
   const IndexMeta &index_meta() const { return index_meta_; }
 
+  const std::vector<FieldMeta> &field_metas() const { return field_metas_; }
+
   /**
    * @brief 插入一条数据
    *
    * @param record 插入的记录，当前假设记录是定长的
    * @param[out] rid    插入的记录的位置
    */
-  virtual RC insert_entry(const char *record, const RID *rid) = 0;
+  virtual RC insert_entry(Record &record, const RID *rid, const int record_size, int field_indexs[]) = 0;
 
   /**
    * @brief 删除一条数据
@@ -80,11 +82,12 @@ public:
   virtual RC sync() = 0;
 
 protected:
-  RC init(const IndexMeta &index_meta, const FieldMeta &field_meta);
+  RC init(const IndexMeta &index_meta, const FieldMeta *field_metas[], int field_num);
 
 protected:
-  IndexMeta index_meta_;  ///< 索引的元数据
-  FieldMeta field_meta_;  ///< 当前实现仅考虑一个字段的索引
+  IndexMeta index_meta_;                ///< 索引的元数据
+  std::vector<FieldMeta> field_metas_;  /// 当前实现仅考虑一个字段的索引
+  int field_num_;
 };
 
 /**

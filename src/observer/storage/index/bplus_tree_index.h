@@ -27,13 +27,19 @@ public:
   BplusTreeIndex() = default;
   virtual ~BplusTreeIndex() noexcept;
 
-  RC create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta);
-  RC open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta);
+  RC create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta *field_metas[], int field_num);
+  RC open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta *field_metas[], int field_num);
   RC close();
+  RC make_entry_key(const char *record, char *&entry_key);
 
-  RC insert_entry(const char *record, const RID *rid) override;
   RC delete_entry(const char *record, const RID *rid) override;
+  RC insert_entry(Record &record, const RID *rid, const int record_size, int field_indexs[]) override;
   RC update_entry(const char *record, const char *new_record, const RID *rid) override;
+
+  /**
+   * 获取索引的数据长度（所有索引字段的长度之和）
+   */
+  const int entry_length() const { return index_handler_.entry_length(); };
 
   /**
    * 扫描指定范围的数据
@@ -45,7 +51,7 @@ public:
 
 private:
   bool             inited_ = false;
-  Table           *table_  = nullptr;
+  Table            *table_ = nullptr;
   BplusTreeHandler index_handler_;
 };
 

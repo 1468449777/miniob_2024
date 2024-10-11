@@ -30,6 +30,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/index/latch_memo.h"
 #include "storage/index/bplus_tree_log.h"
 
+#define MAX_INDEX_FIELD_NUM 20
+
 class BplusTreeHandler;
 class BplusTreeMiniTransaction;
 
@@ -56,29 +58,58 @@ enum class BplusTreeOperationType
 class AttrComparator
 {
 public:
-  void init(AttrType type, int length)
+  void init(AttrType types[], int lengths[], int num)
   {
-    attr_type_   = type;
-    attr_length_ = length;
+    int total_attr_length = 0;
+    for(int i = 0; i < num; i++){
+      total_attr_length += lengths[i];
+      attr_types_.push_back(types[i]);
+      attr_lengths_.push_back(lengths[i]);
+    }
+    total_attr_length_ = total_attr_length;
+    attr_num_ = num;
   }
 
-  int attr_length() const { return attr_length_; }
+  int total_attr_length() const { return total_attr_length_; }
 
-  int operator()(const char *v1, const char *v2) const
-  {
-    // TODO: optimized the comparison
-    Value left;
-    left.set_type(attr_type_);
-    left.set_data(v1, attr_length_);
-    Value right;
-    right.set_type(attr_type_);
-    right.set_data(v2, attr_length_);
-    return DataType::type_instance(attr_type_)->compare(left, right);
+  int compare_key(const char *v1, const char *v2, AttrType attr_type, int attr_length) const {
+    switch (attr_type) {
+      case AttrType::INTS: case AttrType::DATES:{
+        return common::compare_int((void *)v1, (void *)v2);
+        break;
+      }
+      case AttrType::FLOATS: {
+        return common::compare_float((void *)v1, (void *)v2);
+        break;
+      }
+      case AttrType::CHARS: {
+        return common::compare_string((void *)v1, attr_length, (void *)v2, attr_length);
+        break;
+      }
+      default:{
+        LOG_ERROR("unknown attr type. %d", attr_type);
+        abort();
+      }
+    }
+  }
+
+  int operator()(const char *v1, const char *v2) const {
+    int offset = 0;
+    for (int i = 0; i < attr_num_; ++i) {
+      const int result = compare_key(v1 + offset, v2 + offset, attr_types_[i], attr_lengths_[i]);
+      if (result != 0) {
+        return result;
+      }
+      offset += attr_lengths_[i];
+    }
+    return 0;
   }
 
 private:
-  AttrType attr_type_;
-  int      attr_length_;
+  std::vector<AttrType> attr_types_;
+  std::vector<int>      attr_lengths_;
+  int                   attr_num_;
+  int                   total_attr_length_;
 };
 
 /**
@@ -89,7 +120,7 @@ private:
 class KeyComparator
 {
 public:
-  void init(AttrType type, int length) { attr_comparator_.init(type, length); }
+  void init(AttrType types[], int lengths[], int num) { attr_comparator_.init(types, lengths, num); }
 
   const AttrComparator &attr_comparator() const { return attr_comparator_; }
 
@@ -100,8 +131,8 @@ public:
       return result;
     }
 
-    const RID *rid1 = (const RID *)(v1 + attr_comparator_.attr_length());
-    const RID *rid2 = (const RID *)(v2 + attr_comparator_.attr_length());
+    const RID *rid1 = (const RID *)(v1 + attr_comparator_.total_attr_length());
+    const RID *rid2 = (const RID *)(v2 + attr_comparator_.total_attr_length());
     return RID::compare(rid1, rid2);
   }
 
@@ -116,23 +147,64 @@ private:
 class AttrPrinter
 {
 public:
-  void init(AttrType type, int length)
+  void init(AttrType types[], int lengths[], int num)
   {
-    attr_type_   = type;
-    attr_length_ = length;
+    int total_attr_length = 0;
+    for (int i = 0; i < num; ++i) {
+      total_attr_length += lengths[i];
+      attr_types_.push_back(types[i]);
+      attr_lengths_.push_back(lengths[i]);
+    }
+    total_attr_length_ = total_attr_length;
+    attr_num_ = num;
   }
 
-  int attr_length() const { return attr_length_; }
+  int total_attr_length() const { return total_attr_length_; }
 
-  string operator()(const char *v) const
-  {
-    Value value(attr_type_, const_cast<char *>(v), attr_length_);
-    return value.to_string();
+  std::string field_to_string(const char *v, AttrType attr_type, int attr_length) const {
+    switch (attr_type) {
+      case AttrType::INTS: case AttrType::DATES: {
+        return std::to_string(*(int*)v);
+        break;
+      }
+      case AttrType::FLOATS: {
+        return std::to_string(*(float*)v);
+        break;
+      }
+      case AttrType::CHARS: {
+        std::string str;
+        for (int i = 0; i < attr_length; i++) {
+          if (v[i] == 0) {
+            break;
+          }
+          str.push_back(v[i]);
+        }
+        return str;
+        break;
+      }
+      default:{
+        LOG_ERROR("unknown attr type. %d", attr_type);
+        abort();
+      }
+    }
+  }
+
+  std::string operator()(const char *v) const {
+    int offset = 0;
+    std::string ans = "";
+    for (int i = 0; i < attr_num_; ++i) {
+      std::string key_string = field_to_string(v + offset, attr_types_[i], attr_lengths_[i]);
+      ans += key_string;
+      offset += attr_lengths_[i];
+    }
+    return ans;
   }
 
 private:
-  AttrType attr_type_;
-  int      attr_length_;
+  std::vector<AttrType> attr_types_;
+  std::vector<int>      attr_lengths_;
+  int                   total_attr_length_;
+  int                   attr_num_;
 };
 
 /**
@@ -142,7 +214,7 @@ private:
 class KeyPrinter
 {
 public:
-  void init(AttrType type, int length) { attr_printer_.init(type, length); }
+  void init(AttrType types[], int lengths[], int num) { attr_printer_.init(types, lengths, num); }
 
   const AttrPrinter &attr_printer() const { return attr_printer_; }
 
@@ -151,7 +223,7 @@ public:
     stringstream ss;
     ss << "{key:" << attr_printer_(v) << ",";
 
-    const RID *rid = (const RID *)(v + attr_printer_.attr_length());
+    const RID *rid = (const RID *)(v + attr_printer_.total_attr_length());
     ss << "rid:{" << rid->to_string() << "}}";
     return ss.str();
   }
@@ -173,21 +245,23 @@ struct IndexFileHeader
     memset(this, 0, sizeof(IndexFileHeader));
     root_page = BP_INVALID_PAGE_NUM;
   }
-  PageNum  root_page;          ///< 根节点在磁盘中的页号
-  int32_t  internal_max_size;  ///< 内部节点最大的键值对数
-  int32_t  leaf_max_size;      ///< 叶子节点最大的键值对数
-  int32_t  attr_length;        ///< 键值的长度
-  int32_t  key_length;         ///< attr length + sizeof(RID)
-  AttrType attr_type;          ///< 键值的类型
-  int32_t  unique=0;           ///< 是否唯一
+  PageNum  root_page;                                ///< 根节点在磁盘中的页号
+  int32_t  internal_max_size;                        ///< 内部节点最大的键值对数
+  int32_t  leaf_max_size;                            ///< 叶子节点最大的键值对数
+  int32_t  attr_lengths[MAX_INDEX_FIELD_NUM];        ///< 键值的长度
+  int32_t  key_length;                               ///< attr length + sizeof(RID)
+  AttrType attr_types[MAX_INDEX_FIELD_NUM];          ///< 键值的类型
+  int32_t  unique=0;                                 ///< 是否唯一
+  int      total_attr_length;
+  int      attr_num;
 
   const string to_string() const
   {
     stringstream ss;
 
-    ss << "attr_length:" << attr_length << ","
+    ss << "total_attr_length:" << total_attr_length << ","
        << "key_length:" << key_length << ","
-       << "attr_type:" << attr_type_to_string(attr_type) << ","
+       << "attr_type:" << attr_type_to_string(attr_types[0]) << ","
        << "root_page:" << root_page << ","
        << "internal_max_size:" << internal_max_size << ","
        << "unique:" << unique << ","
@@ -461,9 +535,9 @@ public:
    * @param internal_max_size 内部节点最大大小
    * @param leaf_max_size 叶子节点最大大小
    */
-  RC create(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name, AttrType attr_type, int attr_length, int unqiue,
+  RC create(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name, AttrType attr_types[], int attr_lengths[], int attr_num, int unqiue,
       int internal_max_size = -1, int leaf_max_size = -1);
-  RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool, AttrType attr_type, int attr_length, int unique,
+  RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool, AttrType attr_types[], int attr_lengths[], int attr_num, int unique,
       int internal_max_size = -1, int leaf_max_size = -1);
 
   /**
@@ -523,6 +597,11 @@ public:
    * @note thread unsafe
    */
   bool validate_tree();
+
+  const int entry_length() const 
+  {
+    return file_header_.total_attr_length;
+  }
 
 public:
   const IndexFileHeader &file_header() const { return file_header_; }

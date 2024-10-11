@@ -85,7 +85,7 @@ public:
   RC recover_insert_record(Record &record);
 
   // TODO refactor
-  RC create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name, int unique);
+  RC create_index(Trx *trx, std::vector<const FieldMeta *> field_meta, const char *index_name, int unique);
 
   RC get_record_scanner(RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode);
 
@@ -115,7 +115,7 @@ public:
   RC sync();
 
 private:
-  RC insert_entry_of_indexes(const char *record, const RID &rid);
+  RC insert_entry_of_indexes(Record &record, const RID &rid);
   RC delete_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists);
   RC update_entry_of_indexes(const char *record, const char *new_record, const RID &rid);
   RC set_value_to_record(char *record_data, const Value &value, const FieldMeta *field, const int record_len);

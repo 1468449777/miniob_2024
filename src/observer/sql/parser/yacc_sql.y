@@ -179,7 +179,6 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <condition_list>      condition_list
 %type <string>              storage_format
 %type <relation_list>       rel_list
-%type <expression>          expression_value_list
 %type <expression>          expression
 %type <order_by_info>       order_by_expression_list
 %type <order_by_info>       order_by_info
@@ -698,13 +697,10 @@ expression:
     | '-' expression %prec UMINUS {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
-    /* | value {
+    | value {
       $$ = new ValueExpr(*$1);
       $$->set_name(token_name(sql_string, &@$));
       delete $1;
-    } */
-    | expression_value_list {
-      $$ = $1;
     }
 
     // 目前无法识别 in (1) 这样类型的例子，也就是如果括号里只有一个值，还是会识别为普通的值表达式
@@ -752,19 +748,6 @@ expression:
 
     ;
 
-expression_value_list:
-    value {
-        $$ = new ValueExpr(*$1);
-        $$->set_name(token_name(sql_string, &@$));
-        delete $1;
-    }
-    | expression_value_list value {
-        auto sum_expr = new ValueExpr(*$2);
-        delete $2;
-        
-        $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, sum_expr, $1, sql_string, &@$);
-    }
-    ;
 
 aggregate_type:
     SUM{

@@ -73,6 +73,7 @@ See the Mulan PSL v2 for more details. */
   DEFINE_RC(FILE_NOT_OPENED)             \
   DEFINE_RC(FILE_CLOSE)                  \
   DEFINE_RC(FILE_REMOVE)                 \
+  DEFINE_RC(GENERIC_ERROR)               \
   DEFINE_RC(VARIABLE_NOT_EXISTS)         \
   DEFINE_RC(VARIABLE_NOT_VALID)          \
   DEFINE_RC(LOGBUF_FULL)                 \

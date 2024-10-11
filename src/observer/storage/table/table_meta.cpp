@@ -128,6 +128,20 @@ const FieldMeta *TableMeta::field(const char *name) const
   return nullptr;
 }
 
+int TableMeta::find_field_index_by_name(const char *name) const 
+{
+  if (nullptr == name) {
+    return -1;
+  }
+  int size = fields_.size();
+  for (int i = 0; i < size; ++i) {
+    if (0 == strcmp(fields_[i].name(), name)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 const FieldMeta *TableMeta::find_field_by_offset(int offset) const
 {
   for (const FieldMeta &field : fields_) {
@@ -154,7 +168,7 @@ const IndexMeta *TableMeta::index(const char *name) const
 const IndexMeta *TableMeta::find_index_by_field(const char *field) const
 {
   for (const IndexMeta &index : indexes_) {
-    if (0 == strcmp(index.field(), field)) {
+    if (0 == strcmp(index.field(0), field) && index.field_num() == 1) {
       return &index;
     }
   }

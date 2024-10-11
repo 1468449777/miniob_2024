@@ -70,8 +70,14 @@ public:
 
     const char *filename = btree_filename.c_str();
 
+    AttrType attr_types[2];
+    attr_types[0] = AttrType::INTS;
+
+    int len[2];
+    len[0] = sizeof(int32_t);
+    
     RC rc = handler_.create(
-        log_handler_, bpm_, filename, AttrType::INTS, sizeof(int32_t) /*attr_len*/, internal_max_size, leaf_max_size);
+        log_handler_, bpm_, filename, attr_types, len /*attr_len*/, internal_max_size, leaf_max_size);
     if (rc != RC::SUCCESS) {
       throw runtime_error("failed to create btree handler");
     }
