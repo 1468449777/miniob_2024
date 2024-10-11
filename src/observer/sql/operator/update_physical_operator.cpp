@@ -61,8 +61,8 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         ++copy_len;
       }
       bool value_is_null = it.second.is_null();
-      memcpy(new_record.data() + it.first->offset(), it.second.data(), copy_len);
-      memcpy(new_record.data() + new_record.len() - it.first->field_id() - 1, &value_is_null, 1); // 修改null标记位
+      memcpy(new_record_data + it.first->offset(), it.second.data(), copy_len);
+      memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1); // 修改null标记位
     }
     // TODO: 需要做unique处理, 否则影响唯一性约束
     // 
