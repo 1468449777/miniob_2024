@@ -39,6 +39,8 @@ RC IndexScanPhysicalOperator::open(Trx *trx)
     return RC::INTERNAL;
   }
 
+  table_->lock_table(mode_);
+
   IndexScanner *index_scanner = index_->create_scanner(left_value_.data(),
       left_value_.length(),
       left_inclusive_,
@@ -112,6 +114,7 @@ RC IndexScanPhysicalOperator::close()
   copied_tuples_.clear();
   index_scanner_->destroy();
   index_scanner_ = nullptr;
+  table_->unlock_table(mode_);
   return RC::SUCCESS;
 }
 

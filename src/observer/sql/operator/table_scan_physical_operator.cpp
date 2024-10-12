@@ -22,6 +22,7 @@ using namespace std;
 
 RC TableScanPhysicalOperator::open(Trx *trx)
 {
+  table_->lock_table(mode_);
   RC rc = table_->get_record_scanner(record_scanner_, trx, mode_);
   if (rc == RC::SUCCESS) {
     tuple_.set_schema(table_, table_->table_meta().field_metas());
@@ -64,8 +65,9 @@ RC TableScanPhysicalOperator::close()
     delete tuple;
   }
   copied_tuples_.clear();
-
-  return record_scanner_.close_scan();
+  RC rc = record_scanner_.close_scan();
+  table_->unlock_table(mode_);
+  return rc;
 }
 
 Tuple *TableScanPhysicalOperator::current_tuple()
