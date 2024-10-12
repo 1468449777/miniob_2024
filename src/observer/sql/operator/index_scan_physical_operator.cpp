@@ -117,24 +117,17 @@ RC IndexScanPhysicalOperator::close()
 
 Tuple *IndexScanPhysicalOperator::current_tuple()
 {
+  // 拷贝是为了排序操作的tuple的收集,如果不用排序应该可以不用拷贝，这里全部拷贝
+  Record   *copied_record = new Record(current_record_);
+  RowTuple *tuple         = new RowTuple();
+  copied_tuples_.push_back(tuple);
   if (need_copy_record) {
-    // 拷贝是为了排序操作的tuple的收集,如果不用排序应该可以不用拷贝，这里全部拷贝
-    Record   *copied_record = new Record(current_record_);
-    RowTuple *tuple         = new RowTuple();
-    copied_tuples_.push_back(tuple);
-
     // owner为true，copy了一份
     copied_record->copy_data(current_record_.data(), current_record_.len());
-
-    tuple->set_record(copied_record);
-    tuple->set_schema(table_, table_->table_meta().field_metas());
-    return tuple;
-  } else {
-    RowTuple *tuple = new RowTuple();
-    tuple->set_record(&current_record_);
-    tuple->set_schema(table_, table_->table_meta().field_metas());
-    return tuple;
   }
+  tuple->set_record(copied_record);
+  tuple->set_schema(table_, table_->table_meta().field_metas());
+  return tuple;
 }
 
 void IndexScanPhysicalOperator::set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs)

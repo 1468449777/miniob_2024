@@ -70,24 +70,18 @@ RC TableScanPhysicalOperator::close()
 
 Tuple *TableScanPhysicalOperator::current_tuple()
 {
-  if (need_copy_record) {
-    // 拷贝是为了排序操作的tuple的收集,如果不用排序应该可以不用拷贝，这里全部拷贝
-    Record   *copied_record = new Record(current_record_);
-    RowTuple *tuple         = new RowTuple();
-    copied_tuples_.push_back(tuple);
 
+  // 拷贝是为了排序操作的tuple的收集,如果不用排序应该可以不用拷贝，这里全部拷贝
+  Record   *copied_record = new Record(current_record_);
+  RowTuple *tuple         = new RowTuple();
+  copied_tuples_.push_back(tuple);
+  if (need_copy_record) {
     // owner为true，copy了一份
     copied_record->copy_data(current_record_.data(), current_record_.len());
-
-    tuple->set_record(copied_record);
-    tuple->set_schema(table_, table_->table_meta().field_metas());
-    return tuple;
-  } else {
-    RowTuple *tuple = new RowTuple();
-    tuple->set_record(&current_record_);
-    tuple->set_schema(table_, table_->table_meta().field_metas());
-    return tuple;
   }
+  tuple->set_record(copied_record);
+  tuple->set_schema(table_, table_->table_meta().field_metas());
+  return tuple;
 }
 
 string TableScanPhysicalOperator::param() const { return table_->name(); }
