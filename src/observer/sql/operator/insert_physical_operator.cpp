@@ -13,6 +13,8 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/operator/insert_physical_operator.h"
+#include "common/rc.h"
+#include "common/types.h"
 #include "sql/stmt/insert_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
@@ -25,7 +27,8 @@ InsertPhysicalOperator::InsertPhysicalOperator(Table *table, vector<Value> &&val
 {}
 
 RC InsertPhysicalOperator::open(Trx *trx)
-{
+{ 
+  table_->lock_table(ReadWriteMode::READ_WRITE);
   Record record;
   RC     rc = table_->make_record(static_cast<int>(values_.size()), values_.data(), record);
   if (rc != RC::SUCCESS) {
@@ -43,4 +46,6 @@ RC InsertPhysicalOperator::open(Trx *trx)
 
 RC InsertPhysicalOperator::next() { return RC::RECORD_EOF; }
 
-RC InsertPhysicalOperator::close() { return RC::SUCCESS; }
+RC InsertPhysicalOperator::close() { 
+  table_->unlock_table(ReadWriteMode::READ_WRITE);
+  return RC::SUCCESS; }

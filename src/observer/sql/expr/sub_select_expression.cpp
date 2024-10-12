@@ -59,6 +59,7 @@ RC SubSelectExpr::get_value(const Tuple &tuple, Value &value) const
 
   rc = oper_->open(nullptr);
   if (OB_FAIL(rc)) {
+    oper_->close();
     return rc;
   }
 
