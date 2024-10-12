@@ -17,8 +17,13 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/trx.h"
 
 IndexScanPhysicalOperator::IndexScanPhysicalOperator(Table *table, Index *index, ReadWriteMode mode,
-    const Value *left_value, bool left_inclusive, const Value *right_value, bool right_inclusive)
-    : table_(table), index_(index), mode_(mode), left_inclusive_(left_inclusive), right_inclusive_(right_inclusive)
+    const Value *left_value, bool left_inclusive, const Value *right_value, bool right_inclusive, bool need_copy_record)
+    : table_(table),
+      index_(index),
+      mode_(mode),
+      left_inclusive_(left_inclusive),
+      right_inclusive_(right_inclusive),
+      need_copy_record(need_copy_record)
 {
   if (left_value) {
     left_value_ = *left_value;
@@ -112,17 +117,22 @@ RC IndexScanPhysicalOperator::close()
 
 Tuple *IndexScanPhysicalOperator::current_tuple()
 {
-  // 拷贝是为了排序等操作的tuple的收集,如果不用排序应该可以不用拷贝，这里全部拷贝
-  Record   *copied_record = new Record(current_record_);
-  RowTuple *tuple         = new RowTuple();
-  copied_tuples_.push_back(tuple);
+  if (need_copy_record) {
+    // 拷贝是为了排序操作的tuple的收集,如果不用排序应该可以不用拷贝，这里全部拷贝
+    Record   *copied_record = new Record(current_record_);
+    RowTuple *tuple         = new RowTuple();
+    copied_tuples_.push_back(tuple);
 
-  // owner为true，copy了一份
-  copied_record->copy_data(current_record_.data(), current_record_.len());
+    // owner为true，copy了一份
+    copied_record->copy_data(current_record_.data(), current_record_.len());
 
-  tuple->set_record(copied_record);
-  tuple->set_schema(table_, table_->table_meta().field_metas());
-  return tuple;
+    tuple->set_record(copied_record);
+    tuple->set_schema(table_, table_->table_meta().field_metas());
+    return tuple;
+  } else {
+    tuple_.set_record(&current_record_);
+    return &tuple_;
+  }
 }
 
 void IndexScanPhysicalOperator::set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs)

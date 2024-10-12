@@ -25,7 +25,7 @@ See the Mulan PSL v2 for more details. */
 class TableGetLogicalOperator : public LogicalOperator
 {
 public:
-  TableGetLogicalOperator(Table *table, ReadWriteMode mode);
+  TableGetLogicalOperator(Table *table, ReadWriteMode mode, bool need_copy_record = false);
   virtual ~TableGetLogicalOperator() = default;
 
   LogicalOperatorType type() const override { return LogicalOperatorType::TABLE_GET; }
@@ -35,11 +35,13 @@ public:
 
   void set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs);
   auto predicates() -> std::vector<std::unique_ptr<Expression>> & { return predicates_; }
+  void set_need_copy_record(bool bool_value) { need_copy_record_ = bool_value; }
+  bool need_copy_record() { return need_copy_record_; }
 
 private:
   Table        *table_ = nullptr;
   ReadWriteMode mode_  = ReadWriteMode::READ_WRITE;
-
+  bool          need_copy_record_{false};
   // 与当前表相关的过滤操作，可以尝试在遍历数据时执行
   // 这里的表达式都是比较简单的比较运算，并且左右两边都是取字段表达式或值表达式
   // 不包含复杂的表达式运算，比如加减乘除、或者conjunction expression

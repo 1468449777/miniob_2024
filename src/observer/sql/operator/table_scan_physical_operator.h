@@ -30,7 +30,9 @@ class Table;
 class TableScanPhysicalOperator : public PhysicalOperator
 {
 public:
-  TableScanPhysicalOperator(Table *table, ReadWriteMode mode) : table_(table), mode_(mode) {}
+  TableScanPhysicalOperator(Table *table, ReadWriteMode mode, bool need_copy_record)
+      : table_(table), mode_(mode), need_copy_record(need_copy_record)
+  {}
 
   virtual ~TableScanPhysicalOperator() = default;
 
@@ -58,4 +60,5 @@ private:
   RowTuple                                 tuple_;
   std::vector<std::unique_ptr<Expression>> predicates_;     // TODO chang predicate to table tuple filter
   std::vector<RowTuple *>                  copied_tuples_;  // for delete copied tuples
+  bool                                     need_copy_record;
 };

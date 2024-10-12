@@ -56,8 +56,9 @@ RC TableScanPhysicalOperator::next()
 }
 
 RC TableScanPhysicalOperator::close()
-{ 
-  // 我已经修改了join的逻辑，每张表只会open一次，并在树顶部的算子close时，递归close，所有将内存回收放在这里。index_scan 同理
+{
+  // 我已经修改了join的逻辑，每张表只会open一次，并在树顶部的算子close时，递归close，所有将内存回收放在这里。index_scan
+  // 同理
   for (auto tuple : copied_tuples_) {
     delete &tuple->record();
     delete tuple;
@@ -69,17 +70,22 @@ RC TableScanPhysicalOperator::close()
 
 Tuple *TableScanPhysicalOperator::current_tuple()
 {
-  // 拷贝是为了排序等操作的tuple的收集,如果不用排序应该可以不用拷贝，这里全部拷贝
-  Record   *copied_record = new Record(current_record_);
-  RowTuple *tuple         = new RowTuple();
-  copied_tuples_.push_back(tuple);
+  if (need_copy_record) {
+    // 拷贝是为了排序操作的tuple的收集,如果不用排序应该可以不用拷贝，这里全部拷贝
+    Record   *copied_record = new Record(current_record_);
+    RowTuple *tuple         = new RowTuple();
+    copied_tuples_.push_back(tuple);
 
-  // owner为true，copy了一份
-  copied_record->copy_data(current_record_.data(), current_record_.len());
+    // owner为true，copy了一份
+    copied_record->copy_data(current_record_.data(), current_record_.len());
 
-  tuple->set_record(copied_record);
-  tuple->set_schema(table_, table_->table_meta().field_metas());
-  return tuple;
+    tuple->set_record(copied_record);
+    tuple->set_schema(table_, table_->table_meta().field_metas());
+    return tuple;
+  } else {
+    tuple_.set_record(&current_record_);
+    return &tuple_;
+  }
 }
 
 string TableScanPhysicalOperator::param() const { return table_->name(); }

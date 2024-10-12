@@ -107,6 +107,8 @@ RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, std::unique_ptr<Logica
 RC LogicalPlanGenerator::create_plan(
     SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator, bool is_sub_select)
 {
+  bool need_copy_record = !select_stmt->order_by().order_by_attrs.empty();
+
   unique_ptr<LogicalOperator> *last_oper = nullptr;
 
   unique_ptr<LogicalOperator> table_oper(nullptr);
@@ -115,8 +117,8 @@ RC LogicalPlanGenerator::create_plan(
   const std::vector<Table *> &tables = select_stmt->tables();
 
   std::unordered_set<std::string> table_set;
-  FilterStmt *filter_stmt = select_stmt->filter_stmt();
-  
+  FilterStmt                     *filter_stmt = select_stmt->filter_stmt();
+
   auto check = [&](FilterUnit *cond) -> bool {
     bool ans = true;
     if (cond->left().expr->type() != ExprType::FIELD && cond->left().expr->type() != ExprType::VALUE) {
@@ -136,11 +138,11 @@ RC LogicalPlanGenerator::create_plan(
     return ans;
   };
 
-
   for (Table *table : tables) {
     const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
 
-    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
+    unique_ptr<LogicalOperator> table_get_oper(
+        new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY, need_copy_record));
     table_set.insert(table->name());
 
     FilterStmt *cur_stmt = new FilterStmt;
@@ -159,9 +161,9 @@ RC LogicalPlanGenerator::create_plan(
       join_oper->add_child(std::move(table_get_oper));
       table_oper = unique_ptr<LogicalOperator>(join_oper);
     }
-    
+
     std::unique_ptr<LogicalOperator> predicate_oper;
-    RC rc = create_plan(cur_stmt, predicate_oper);
+    RC                               rc = create_plan(cur_stmt, predicate_oper);
     if (OB_FAIL(rc)) {
       LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
       return rc;
