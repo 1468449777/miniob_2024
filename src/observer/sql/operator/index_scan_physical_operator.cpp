@@ -130,8 +130,10 @@ Tuple *IndexScanPhysicalOperator::current_tuple()
     tuple->set_schema(table_, table_->table_meta().field_metas());
     return tuple;
   } else {
-    tuple_.set_record(&current_record_);
-    return &tuple_;
+    RowTuple *tuple = new RowTuple();
+    tuple->set_record(&current_record_);
+    tuple->set_schema(table_, table_->table_meta().field_metas());
+    return tuple;
   }
 }
 
