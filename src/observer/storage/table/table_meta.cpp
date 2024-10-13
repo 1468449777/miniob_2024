@@ -280,7 +280,7 @@ int TableMeta::deserialize(std::istream &is)
   storage_format_ = static_cast<StorageFormat>(storage_format);
   name_.swap(table_name);
   fields_.swap(fields);
-  record_size_ = fields_.back().offset() + fields_.back().len() - fields_.begin()->offset();
+  record_size_ = fields_.back().offset() + fields_.back().len() - fields_.begin()->offset() + field_num;
 
   for (const FieldMeta &field_meta : fields_) {
     if (!field_meta.visible()) {
