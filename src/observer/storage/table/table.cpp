@@ -643,6 +643,6 @@ void Table::unlock_table(ReadWriteMode mode)
   if (mode == ReadWriteMode::READ_ONLY) {
     mutex_.unlock_shared();
   } else {
-    mutex_.unlock_shared();
+    mutex_.unlock();
   }
 }
