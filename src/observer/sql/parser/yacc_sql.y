@@ -130,6 +130,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         OR
         INNER
         JOIN
+        AS
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -721,6 +722,10 @@ on:
     $$ = $2;
   }
   ;
+
+as_alias:
+  | AS  
+
 expression_list:
     expression
     {
@@ -777,12 +782,12 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
       delete $1;
     }
-    | rel_attr ID{
+    | rel_attr as_alias ID{
       RelAttrSqlNode *node = $1;
       $$ = new UnboundFieldExpr(node->relation_name, node->attribute_name);
-      $$->set_name($2);
+      $$->set_name($3);
       delete $1;
-      free($2);
+      free($3);
     }
     | '*' {
       $$ = new StarExpr();
@@ -841,14 +846,20 @@ rel_attr:
       free($1);
       free($3);
     }
+    | ID DOT '*'{
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = '*';
+      free($1);
+    }
     ;
 
 relation:
-    ID ID{
+    ID as_alias ID{
       $$ = new std::pair<std::string,std::string>();
-      (*$$) = std::make_pair(std::string($2),std::string($1));
+      (*$$) = std::make_pair(std::string($3),std::string($1));
       free($1);
-      free($2);
+      free($3);
     }|
     ID{
       $$ = new std::pair<std::string,std::string>();
