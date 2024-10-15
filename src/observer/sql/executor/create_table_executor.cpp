@@ -46,12 +46,12 @@ RC CreateTableExecutor::execute(SQLStageEvent *sql_event)
 
   const char *table_name = create_table_stmt->table_name().c_str();
 
-  RC rc;
+  RC  rc;
+  Db *db = sql_event->session_event()->session()->get_current_db();
 
   // create table select
   if (create_table_stmt->attr_infos().empty()) {
     std::vector<AttrInfoSqlNode> attr_infos;
-    Db                          *db                = sql_event->session_event()->session()->get_current_db();
     SubSelectExpr               *sub_select_expr   = static_cast<SubSelectExpr *>(create_table_stmt->sub_select_expr());
     PhysicalOperator            *physical_operator = sub_select_expr->physical_operator();
     if (physical_operator->type() != PhysicalOperatorType::PROJECT) {
@@ -60,12 +60,20 @@ RC CreateTableExecutor::execute(SQLStageEvent *sql_event)
     }
     ProjectPhysicalOperator *project_physical_operator = static_cast<ProjectPhysicalOperator *>(physical_operator);
     project_physical_operator->tuple_meta(attr_infos, db);
-
+    
     rc = session->get_current_db()->create_table(table_name, attr_infos, create_table_stmt->storage_format());
+  } else {
+    rc = session->get_current_db()->create_table(
+        table_name, create_table_stmt->attr_infos(), create_table_stmt->storage_format());
+  }
+  if (OB_FAIL(rc)) {
+    return rc;
+  }
 
-    if (OB_FAIL(rc)) {
-      return rc;
-    }
+  // 若存在子查询，则像表里插入数据
+  if (create_table_stmt->sub_select_expr() != nullptr) {
+    SubSelectExpr    *sub_select_expr   = static_cast<SubSelectExpr *>(create_table_stmt->sub_select_expr());
+    PhysicalOperator *physical_operator = sub_select_expr->physical_operator();
 
     Table *new_table = db->find_table(table_name);
     physical_operator->open(nullptr);
@@ -92,12 +100,6 @@ RC CreateTableExecutor::execute(SQLStageEvent *sql_event)
       }
     }
     rc = physical_operator->close();
-
-    return rc;
-
-  } else {
-    rc = session->get_current_db()->create_table(
-        table_name, create_table_stmt->attr_infos(), create_table_stmt->storage_format());
   }
 
   return rc;

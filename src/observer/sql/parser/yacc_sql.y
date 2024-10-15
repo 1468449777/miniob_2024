@@ -401,7 +401,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
         free($8);
       }
     }
-    |     CREATE TABLE ID AS select_stmt storage_format
+    |   CREATE TABLE ID AS select_stmt storage_format
     {
       $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
       CreateTableSqlNode &create_table = $$->create_table;
@@ -417,6 +417,24 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       if ($6 != nullptr) {
         create_table.storage_format = $6;
         free($6);
+      }
+    }
+    |   CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE select_stmt storage_format
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      free($3);
+
+      SelectSqlNode *sqlnode = new SelectSqlNode;
+      (*sqlnode) = std::move($8->selection);
+      delete $8;
+      Expression * expr = new UnboundSubSelectExpr(sqlnode);
+      create_table.sub_select=std::unique_ptr<Expression>(expr);
+      
+      if ($9 != nullptr) {
+        create_table.storage_format = $9;
+        free($9);
       }
     }
     ;

@@ -56,7 +56,7 @@ RC InsertStmt::create(Db *db, InsertSqlNode &inserts, Stmt *&stmt)
   if (valuelists.attr_type() == AttrType::VALUESLISTS) {
     multi_values.emplace_back();  // 新增一行
     multi_values[0].swap(*valuelists.get_valuelist());
-  } else {
+  } else { // 插入的数据只有一列，类型不为VALUESLISTS
     multi_values.emplace_back();
     multi_values[0].push_back(valuelists);
   }

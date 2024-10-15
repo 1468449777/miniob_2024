@@ -32,7 +32,7 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
     return RC::INVALID_ARGUMENT;
   }
   vector<unique_ptr<Expression>> bound_expressions;
-  if (create_table.attr_infos.empty()) {
+  if (create_table.sub_select != nullptr) {
     BinderContext binder_context;
     binder_context.set_db(db);
     ExpressionBinder expression_binder(binder_context);
@@ -41,6 +41,7 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
       return RC::ERROR;
     }
   }
+  
   if (bound_expressions.empty()) {
     stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, storage_format, nullptr);
   } else {
