@@ -73,6 +73,7 @@ Value::Value(const Value &other)
     default: {
       this->own_data_ = other.own_data_;
       this->value_    = other.value_;
+      this->date_formmat_s_ = other.date_formmat_s_;
     } break;
   }
 }
@@ -83,6 +84,8 @@ Value::Value(Value &&other)
   this->length_    = other.length_;
   this->own_data_  = other.own_data_;
   this->value_     = other.value_;
+  this->date_formmat_s_ = other.date_formmat_s_;
+  other.date_formmat_s_.clear();
   other.own_data_  = false;
   other.length_    = 0;
 }
@@ -112,6 +115,7 @@ Value &Value::operator=(const Value &other)
     default: {
       this->own_data_ = other.own_data_;
       this->value_    = other.value_;
+      this->date_formmat_s_ = other.date_formmat_s_;
     } break;
   }
   return *this;
@@ -128,6 +132,8 @@ Value &Value::operator=(Value &&other)
   this->own_data_  = other.own_data_;
   this->value_     = other.value_;
   other.own_data_  = false;
+  this->date_formmat_s_ = other.date_formmat_s_;
+  other.date_formmat_s_.clear();
   other.length_    = 0;
   return *this;
 }

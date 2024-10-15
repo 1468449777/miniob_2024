@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/date_type.h"
 #include "common/value.h"
 #include <iomanip>
+#include <ios>
 
 int DateType::compare(const Value &left, const Value &right) const
 {
@@ -45,11 +46,51 @@ RC DateType::set_value_from_str(Value &val, const string &data) const
 
 RC DateType::to_string(const Value &val, string &result) const
 {
+  // set date format
   stringstream ss;
+  string date_format = val.get_date_format();
   int          year  = val.value_.int_value_ / 10000;
   int          month = (val.value_.int_value_ / 100) % 100;
   int          day   = val.value_.int_value_ % 100;
-  ss << std::setfill('0') << std::setw(4) << year << "-" << std::setw(2) << month << "-" << std::setw(2) << day;
+  RC rc = RC::SUCCESS;
+
+  if (date_format.empty()) {
+    ss << std::setfill('0') << std::setw(4) << year << "-" << std::setw(2) << month << "-" << std::setw(2) << day;
+  }
+  else {
+    for (int i = 0; i < date_format.length(); ) {
+      if (date_format[i] == '%') {
+        if (i + 1 >= date_format.length()) {
+          LOG_ERROR("Function invalid argument.");
+          rc = RC::INVALID_ARGUMENT;
+          break;
+        }
+        else {
+          std::streamsize oldWidth = ss.width();
+          char oldFill = ss.fill();
+          if (date_format[i + 1] == 'y' || date_format[i + 1] == 'Y') {
+            ss << std::setfill('0') << std::setw(4) << year;
+          }
+          else if (date_format[i + 1] == 'm' || date_format[i + 1] == 'M') {
+            ss << std::setfill('0') << std::setw(2) << month;
+          }
+          else if (date_format[i + 1] == 'd' || date_format[i + 1] == 'D') {
+            ss << std::setfill('0') << std::setw(2) << day;
+          }
+          else if (date_format[i + 1] == '%') {
+            ss << '%';
+          }
+          ss.width(oldWidth);
+          ss.fill(oldFill);
+        }
+        i += 2;
+      }
+      else {
+        ss << date_format[i];
+        i++;
+      }
+    }
+  }
   result = ss.str();
-  return RC::SUCCESS;
+  return rc;
 }

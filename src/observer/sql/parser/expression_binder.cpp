@@ -79,6 +79,10 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
       return bind_subselect_expression(expr, bound_expressions);
     } break;
 
+    case ExprType::UNBOUND_FUNCTION: {
+      return bind_function_expression(expr, bound_expressions);
+    } break;
+
     case ExprType::FIELD: {
       return bind_field_expression(expr, bound_expressions);
     } break;
@@ -104,6 +108,10 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
     } break;
 
     case ExprType::AGGREGATION: {
+      ASSERT(false, "shouldn't be here");
+    } break;
+
+    case ExprType::FUNCTION: {
       ASSERT(false, "shouldn't be here");
     } break;
 
@@ -500,5 +508,35 @@ RC ExpressionBinder::bind_subselect_expression(
   auto subselect_expr = make_unique<SubSelectExpr>(static_cast<SelectStmt *>(select_stmt));
   subselect_expr->set_name("subselect");
   bound_expressions.emplace_back(std::move(subselect_expr));
+  return rc;
+}
+
+RC ExpressionBinder::bind_function_expression(std::unique_ptr<Expression> &function_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions) {
+  if (function_expr == nullptr){
+    return RC::SUCCESS;
+  }
+  RC rc = RC::SUCCESS;
+  UnboundFunctionExpr *unbound_expr = static_cast<UnboundFunctionExpr *>(function_expr.get());
+  auto &childs = unbound_expr->child();
+
+  FunctionExpr::Type type;
+  rc = FunctionExpr::type_from_string(unbound_expr->function_name().c_str(), type);
+  if (OB_FAIL(rc)) {
+    LOG_ERROR("Fail to get function type.");
+    return rc;
+  }
+
+  std::vector<std::unique_ptr<Expression>> bound_child;
+  for (std::unique_ptr<Expression> &child : childs) {
+    rc = bind_expression(child, bound_child);
+    if (OB_FAIL(rc)) {
+      LOG_ERROR("Fail to bind child expression.");
+      return rc;
+    }
+  }
+  auto func_expr = std::make_unique<FunctionExpr>(type, bound_child);
+
+  func_expr->set_name(function_expr->name());
+  bound_expressions.emplace_back(std::move(func_expr));
   return rc;
 }

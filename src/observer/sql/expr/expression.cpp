@@ -24,8 +24,10 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/parser/parse_defs.h"
 #include <cstdint>
+#include <iomanip>
 #include <memory>
 #include <vector>
+#include <cmath>
 
 using namespace std;
 
@@ -721,5 +723,109 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
   } else {
     rc = RC::INVALID_ARGUMENT;
   }
+  return rc;
+}
+
+
+RC FunctionExpr::type_from_string(const char *function_name, FunctionExpr::Type &type) {
+    RC rc = RC::SUCCESS;
+    if (0 == strcasecmp(function_name, "length")) {
+      type = FunctionExpr::Type::LENGTH;
+    }
+    else if (0 == strcasecmp(function_name, "round")) {
+      type = FunctionExpr::Type::ROUND;
+    }
+    else if (0 == strcasecmp(function_name, "date_format")) {
+      type = FunctionExpr::Type::DATE_FORMAT;
+    } else {
+      rc = RC::INVALID_ARGUMENT;
+    }
+    return rc;
+  }
+
+RC FunctionExpr::get_value(const Tuple &tuple, Value &value) const{
+  RC rc = RC::SUCCESS;
+  Value tmp_value;
+  Value result;
+
+  if ((rc = child_[0]->get_value(tuple, tmp_value)) == RC::SUCCESS) {
+  }
+  else {
+    rc = child_[0]->try_get_value(tmp_value);
+  }
+  if (OB_FAIL(rc)) {
+    return rc;
+  }
+  vector<Value> args;
+  args.emplace_back(tmp_value);
+  if (child_.size() > 1) {
+    for (int i = 1; i < child_.size(); i++) {
+      rc = child_[i]->try_get_value(tmp_value);
+      if (OB_FAIL(rc)) {
+        return rc;
+      }
+      args.emplace_back(tmp_value);
+    }
+  }
+
+  rc = execute(args, result);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("Fail to execut function.");
+    return rc;
+  }
+  value = result;
+
+  return rc;
+}
+
+RC FunctionExpr::execute(const vector<Value> &values, Value &value) const {
+  // Value res;
+  RC rc = RC::SUCCESS;
+
+  switch (type_) {
+    case Type::LENGTH: {
+      if (values.size() != 1 || values[0].attr_type() != AttrType::CHARS) {
+        rc = RC::ERROR;
+      }
+      else {
+        std::string s = values[0].get_string();
+        int s_len = s.length();
+        value = Value(s_len);
+      }
+    } break;
+    case Type::ROUND: {
+      float v = values[0].get_float();
+      int prec = 0;
+      float ans = 0.0;
+      if (values.size() > 1) {
+        prec = values[1].get_int();
+      }
+
+      if (prec < 0) {
+        float factor = std::pow(10, -prec);
+        ans = std::round(v / factor) * factor;
+      } else {
+        float factor = std::pow(10, prec);
+        ans = std::round(v * factor) / factor;
+      }
+      value = Value(ans);
+    } break;
+    case Type::DATE_FORMAT: {
+      if (values.size() != 2) {
+        LOG_ERROR("Invalid function argument.");
+        rc = RC::ERROR;
+      }
+      if (values[0].attr_type() != AttrType::DATES || values[1].attr_type() != AttrType::CHARS) {
+        LOG_ERROR("Invalid function argument.");
+        rc = RC::ERROR;
+      }
+      value = values[0];
+      value.set_date_format(values[1].get_string());
+    } break;
+    default:
+      rc = RC::ERROR;
+      break;
+  }
+  // value = res;
   return rc;
 }

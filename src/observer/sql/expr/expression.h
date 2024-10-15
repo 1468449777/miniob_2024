@@ -16,7 +16,9 @@ See the Mulan PSL v2 for more details. */
 
 #include <memory>
 #include <string>
+#include <utility>
 
+#include "common/rc.h"
 #include "common/type/attr_type.h"
 #include "common/value.h"
 #include "sql/parser/parse_defs.h"
@@ -43,6 +45,7 @@ enum class ExprType
   UNBOUND_FIELD,        ///< 未绑定的字段，需要在resolver阶段解析为FieldExpr
   UNBOUND_AGGREGATION,  ///< 未绑定的聚合函数，需要在resolver阶段解析为AggregateExpr
   UNBOUND_SUBSELECT,    ///< 未绑定的子查询
+  UNBOUND_FUNCTION,
 
   FIELD,        ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
   VALUE,        ///< 常量值
@@ -52,6 +55,7 @@ enum class ExprType
   ARITHMETIC,   ///< 算术运算
   AGGREGATION,  ///< 聚合运算
   SUBSELECT,    ///< 子查询
+  FUNCTION,
 };
 
 /**
@@ -493,3 +497,81 @@ private:
   std::unique_ptr<SelectSqlNode> subselect_;
 };
 
+class FunctionExpr;
+class UnboundFunctionExpr : public Expression {
+public:
+  UnboundFunctionExpr(const char *name, std::vector<std::unique_ptr<Expression>> *child) : function_name_(name) {
+    for (std::unique_ptr<Expression> &expr : *child) {
+      child_.emplace_back(std::move(expr));
+    }
+  }
+  std::string function_name() const {
+    return function_name_;
+  }
+  ExprType type() const override { return ExprType::UNBOUND_FUNCTION; }
+
+  // RC get_column(Chunk &chunk, Column &column) override;
+  RC get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
+  AttrType value_type() const override {
+    return child_[0]->value_type();
+  }
+  std::vector<std::unique_ptr<Expression>> &child() {
+    return child_;
+  }
+
+private:
+  std::string function_name_;
+  std::vector<std::unique_ptr<Expression>> child_;
+};
+
+class FunctionExpr : public Expression {
+public:
+  enum class Type {
+    LENGTH,
+    ROUND,
+    DATE_FORMAT,
+  };
+
+  FunctionExpr(Type type, vector<unique_ptr<Expression>> &child) : type_(type), child_(std::move(child)) {}
+  ExprType type() const override { return ExprType::FUNCTION; }
+
+
+  vector<unique_ptr<Expression>> &child() {
+    return child_;
+  }
+
+  RC get_value(const Tuple &tuple, Value &value) const override;
+  RC try_get_value(Value &value) const override {
+    if (child_[0]->type() != ExprType::VALUE) {
+      return RC::ERROR;
+    }
+    return RC::SUCCESS;
+  }
+  
+  AttrType value_type() const override {
+    // AttrType type = AttrType::UNDEFINED;
+    // switch (type_) {
+    //   case Type::LENGTH:
+    //     type = AttrType::INTS;
+    //     break;
+    //   case Type::ROUND:
+    //     type = AttrType::FLOATS;
+    //     break;
+    //   case Type::DATE_FORMAT:
+    //     type = AttrType::DATES;
+    //     break;
+    //   default:
+    //     break;
+    // }
+    // return type;
+    return child_[0]->value_type();
+  }
+public: 
+  static RC type_from_string(const char *function_name, FunctionExpr::Type &type);
+
+private:
+  RC execute(const vector<Value> &values, Value &value) const;
+private:
+  Type type_;
+  vector<unique_ptr<Expression>> child_;
+};

@@ -51,6 +51,16 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   return expr;
 }
 
+UnboundFunctionExpr *create_function_expression(const char *function_name,
+                                           std::vector<std::unique_ptr<Expression>> *child,
+                                           const char *sql_string,
+                                           YYLTYPE *llocp)
+{
+  UnboundFunctionExpr *expr = new UnboundFunctionExpr(function_name, child);
+  expr->set_name(token_name(sql_string, llocp));
+  return expr;
+}
+
 %}
 
 %define api.pure full
@@ -130,6 +140,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         OR
         INNER
         JOIN
+        LENGTH
+        ROUND
+        DATE_FORMAT
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -220,6 +233,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <sql_node>            help_stmt
 %type <sql_node>            exit_stmt
 %type <sql_node>            command_wrapper
+%type <const_string>        function_type
+%type <string>              function_ret_name
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
@@ -800,10 +815,40 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
 
     }
-
-
+    |
+    function_type LBRACE expression_list RBRACE function_ret_name {
+      $$ = create_function_expression($1, $3, sql_string, &@$);
+      if ($5 != nullptr) {
+        $$->set_name($5);
+        //delete $5;
+      }
+    }
     ;
 
+function_type : 
+    LENGTH {
+      $$ = "length";
+    }
+    |
+    ROUND {
+      $$ = "round";
+    }
+    |
+    DATE_FORMAT {
+      $$ = "date_format";
+    }
+    ;
+
+function_ret_name:
+  {
+    $$ = nullptr;
+  }
+  |
+  ID
+  {
+    $$ = $1;
+  }
+  ;
 
 aggregate_type:
     SUM{

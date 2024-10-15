@@ -101,6 +101,7 @@ public:
   void   set_boolean(bool val);
   void   set_null();
   void   set_valuelist();
+  void   set_date_format(const string &format) { date_formmat_s_ = format; }
   string to_string() const;
 
   int compare(const Value &other) const;
@@ -114,6 +115,7 @@ public:
 
   bool is_null() const { return AttrType::NULLS == attr_type_; }
 
+  const std::string &get_date_format() const { return date_formmat_s_; }
 public:
   /**
    * 获取对应的值
@@ -146,6 +148,7 @@ private:
     std::vector<Value> *values;
   } value_ = {.int_value_ = 0};
 
+  std::string date_formmat_s_;
   /// 是否申请并占有内存, 目前对于 CHARS 类型 own_data_ 为true, 其余类型 own_data_ 为false
   bool own_data_ = false;
 };
