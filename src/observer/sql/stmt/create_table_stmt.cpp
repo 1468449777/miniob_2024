@@ -41,8 +41,12 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
       return RC::ERROR;
     }
   }
-
-  stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, storage_format, std::move(bound_expressions.front()));
+  if (bound_expressions.empty()) {
+    stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, storage_format, nullptr);
+  } else {
+    stmt = new CreateTableStmt(
+        create_table.relation_name, create_table.attr_infos, storage_format, std::move(bound_expressions.front()));
+  }
   sql_debug("create table statement: table name %s", create_table.relation_name.c_str());
   return RC::SUCCESS;
 }
