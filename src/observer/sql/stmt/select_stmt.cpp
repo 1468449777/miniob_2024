@@ -80,7 +80,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     if (table_map.count(select_sql.relations[i].first) == 0) {
       table_map.insert({select_sql.relations[i].first, table});
     } else {
-      return RC::ERROR;         // 出现相同 alias
+      return RC::ERROR;  // 出现相同 alias
     }
   }
 
@@ -89,9 +89,6 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     Table *father_table = db->find_table(father_relation.second.c_str());
     binder_context.add_table(father_table, father_relation.first);
     father_tables.push_back({father_relation.first, father_table});
-    if (table_map.count(father_relation.first) != 0) {
-      return RC::ERROR;// 出现相同 alias
-    }
   }
 
   // collect query fields in `select` statement
