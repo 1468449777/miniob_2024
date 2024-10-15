@@ -176,6 +176,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <value>               value
 %type <number>              number
 %type <relation>              relation
+%type <string>              as_alias
 %type <const_string>        aggregate_type
 %type <comp>                comp_op
 %type <rel_attr>            rel_attr
@@ -189,6 +190,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <string>              storage_format
 %type <relation_list>       rel_list
 %type <expression>          expression
+%type <expression>          expression_with_alias
 %type <order_by_info>       order_by_expression_list
 %type <order_by_info>       order_by_info
 %type <expression_list>     expression_list
@@ -724,15 +726,22 @@ on:
   ;
 
 as_alias:
-  | AS  
+ 
+    ID{
+    $$ = $1;
+  }  
+  |  AS ID{
+    $$ = $2;
+  } 
+  ;
 
 expression_list:
-    expression
+    expression_with_alias
     {
       $$ = new std::vector<std::unique_ptr<Expression>>;
       $$->emplace_back($1);
     }
-    | expression COMMA expression_list
+    | expression_with_alias COMMA expression_list
     {
       if ($3 != nullptr) {
         $$ = $3;
@@ -742,6 +751,17 @@ expression_list:
       $$->emplace($$->begin(), $1);
     }
     ;
+
+expression_with_alias:
+ 
+    expression as_alias{
+      $1->set_name($2);
+      $$ = $1;
+    }
+    |  expression{
+      $$ = $1;
+    } ;
+
 expression:
     expression '+' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
@@ -782,13 +802,6 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
       delete $1;
     }
-    | rel_attr as_alias ID{
-      RelAttrSqlNode *node = $1;
-      $$ = new UnboundFieldExpr(node->relation_name, node->attribute_name);
-      $$->set_name($3);
-      delete $1;
-      free($3);
-    }
     | '*' {
       $$ = new StarExpr();
     }
@@ -812,7 +825,8 @@ expression:
       $$ = new UnboundSubSelectExpr($1);
       $$->set_name(token_name(sql_string, &@$));
 
-    }
+    } 
+
    
     ;
 
@@ -855,11 +869,11 @@ rel_attr:
     ;
 
 relation:
-    ID as_alias ID{
+    ID as_alias {
       $$ = new std::pair<std::string,std::string>();
-      (*$$) = std::make_pair(std::string($3),std::string($1));
+      (*$$) = std::make_pair(std::string($2),std::string($1));
       free($1);
-      free($3);
+      free($2);
     }|
     ID{
       $$ = new std::pair<std::string,std::string>();
