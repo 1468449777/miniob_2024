@@ -50,7 +50,8 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
         for (ConditionSqlNode &join_cond : entry.join_conditions) {
           select_sql.conditions.push_back(std::move(join_cond));
         }
-        // std::copy(entry.join_conditions.begin(), entry.join_conditions.end(), std::back_inserter(select_sql.conditions));
+        // std::copy(entry.join_conditions.begin(), entry.join_conditions.end(),
+        // std::back_inserter(select_sql.conditions));
       }
     }
     for (auto ite = select_sql.join_info.rbegin(); ite != select_sql.join_info.rend(); ++ite) {
@@ -59,10 +60,10 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   }
 
   // collect tables in `from` statement
-  vector<Table *>                tables;
-  unordered_map<string, Table *> table_map;
+  std::vector<std::pair<string, Table *>> tables;
+  unordered_map<string, Table *>          table_map;
   for (size_t i = 0; i < select_sql.relations.size(); i++) {
-    const char *table_name = select_sql.relations[i].c_str();
+    const char *table_name = select_sql.relations[i].second.c_str();
     if (nullptr == table_name) {
       LOG_WARN("invalid argument. relation name is null. index=%d", i);
       return RC::INVALID_ARGUMENT;
@@ -74,16 +75,16 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
 
-    binder_context.add_table(table);
-    tables.push_back(table);
-    table_map.insert({table_name, table});
+    binder_context.add_table(table, select_sql.relations[i].first);
+    tables.push_back({select_sql.relations[i].first, table});
+    table_map.insert({select_sql.relations[i].first, table});
   }
 
-  std::vector<Table *> father_tables;
+  std::vector<pair<string, Table *>> father_tables;
   for (auto father_relation : select_sql.father_relations) {
-    Table *father_table = db->find_table(father_relation.c_str());
-    binder_context.add_table(father_table);
-    father_tables.push_back(father_table);
+    Table *father_table = db->find_table(father_relation.second.c_str());
+    binder_context.add_table(father_table, father_relation.first);
+    father_tables.push_back({father_relation.first, father_table});
   }
 
   // collect query fields in `select` statement
@@ -98,14 +99,12 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   //     expression_binder.bind_expression(exp, left_bound);
   //   }
   //   cond.left_expression.swap(left_bound);
-    
+
   //   for (std::unique_ptr<Expression> &exp : cond.right_expression) {
   //     expression_binder.bind_expression(exp, right_bound);
   //   }
   //   cond.left_expression.swap(right_bound);
   // }
-
-
 
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
     RC rc = expression_binder.bind_expression(expression, bound_expressions);
@@ -126,7 +125,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 
   Table *default_table = nullptr;
   if (tables.size() == 1) {
-    default_table = tables[0];
+    default_table = tables[0].second;
   }
 
   // create filter statement in `where` statement
@@ -171,7 +170,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 
   select_stmt->tables_.swap(tables);
   select_stmt->query_expressions_.swap(bound_expressions);
-  select_stmt->filter_stmt_ = filter_stmt;
+  select_stmt->filter_stmt_          = filter_stmt;
   select_stmt->group_by_filter_stmt_ = group_by_filter_stmt;
   select_stmt->group_by_.swap(group_by_expressions);
   select_stmt->order_by_.order_by_attrs.swap(order_by_expressions);

@@ -24,7 +24,7 @@ RC TableScanPhysicalOperator::open(Trx *trx)
 {
   RC rc = table_->get_record_scanner(record_scanner_, trx, mode_);
   if (rc == RC::SUCCESS) {
-    tuple_.set_schema(table_, table_->table_meta().field_metas());
+    tuple_.set_schema(table_, table_->table_meta().field_metas(),table_alias_);
   }
   trx_ = trx;
   return rc;
@@ -78,7 +78,7 @@ Tuple *TableScanPhysicalOperator::current_tuple()
   copied_record->copy_data(current_record_.data(), current_record_.len());
 
   tuple->set_record(copied_record);
-  tuple->set_schema(table_, table_->table_meta().field_metas());
+  tuple->set_schema(table_, table_->table_meta().field_metas(),table_alias_);
   return tuple;
 }
 

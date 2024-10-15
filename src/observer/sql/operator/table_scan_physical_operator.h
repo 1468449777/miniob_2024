@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/physical_operator.h"
 #include "storage/record/record_manager.h"
 #include "common/types.h"
+#include <string>
 #include <vector>
 
 class Table;
@@ -30,7 +31,9 @@ class Table;
 class TableScanPhysicalOperator : public PhysicalOperator
 {
 public:
-  TableScanPhysicalOperator(Table *table, ReadWriteMode mode) : table_(table), mode_(mode) {}
+  TableScanPhysicalOperator(Table *table, ReadWriteMode mode, std::string table_alias)
+      : table_(table), mode_(mode), table_alias_(table_alias)
+  {}
 
   virtual ~TableScanPhysicalOperator() = default;
 
@@ -58,4 +61,5 @@ private:
   RowTuple                                 tuple_;
   std::vector<std::unique_ptr<Expression>> predicates_;     // TODO chang predicate to table tuple filter
   std::vector<RowTuple *>                  copied_tuples_;  // for delete copied tuples
+  string                                   table_alias_;
 };

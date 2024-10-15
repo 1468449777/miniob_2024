@@ -148,7 +148,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   std::vector<Value> *                       value_list;
   std::vector<ConditionSqlNode> *            condition_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
-  std::vector<std::string> *                 relation_list;
+  std::vector<std::pair<std::string,std::string>> *                 relation_list;
+  std::pair<std::string,std::string> *         relation;
   char *                                     string;
   const char *                               const_string;
   int                                        number;
@@ -173,7 +174,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <condition>           condition
 %type <value>               value
 %type <number>              number
-%type <string>              relation
+%type <relation>              relation
 %type <const_string>        aggregate_type
 %type <comp>                comp_op
 %type <rel_attr>            rel_attr
@@ -700,8 +701,8 @@ join_list:
 join_entry:
   INNER JOIN relation on {
     $$ = new JoinEntry;
-    $$->join_table = std::string($3);
-    free($3);
+    $$->join_table = *$3;
+    delete($3);
     if ($4 != nullptr) {
       $$->join_conditions.swap(*$4);
       delete $4;
@@ -837,25 +838,34 @@ rel_attr:
     ;
 
 relation:
-    ID {
-      $$ = $1;
+    ID ID{
+      $$ = new std::pair<std::string,std::string>();
+      (*$$) = std::make_pair(std::string($2),std::string($1));
+      free($1);
+      free($2);
+    }|
+    ID{
+      $$ = new std::pair<std::string,std::string>();
+      (*$$) = std::make_pair(std::string($1),std::string($1));
+      free($1);
+      
     }
     ;
 rel_list:
     relation {
-      $$ = new std::vector<std::string>();
-      $$->push_back($1);
-      free($1);
+      $$ = new std::vector<std::pair<std::string,std::string>>();
+      $$->push_back(*$1);
+      delete($1);
     }
     | relation COMMA rel_list {
       if ($3 != nullptr) {
         $$ = $3;
       } else {
-        $$ = new std::vector<std::string>;
+        $$ = new std::vector<std::pair<std::string,std::string>>();
       }
 
-      $$->insert($$->begin(), $1);
-      free($1);
+      $$->insert($$->begin(), *$1);
+      delete($1);
     }
     ;
 

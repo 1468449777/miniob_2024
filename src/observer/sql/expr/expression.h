@@ -188,8 +188,19 @@ class FieldExpr : public Expression
 {
 public:
   FieldExpr() = default;
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {}
-  FieldExpr(const Field &field) : field_(field) {}
+  FieldExpr(const Table *table, const FieldMeta *field, const string alias = "")
+      : field_(table, field), table_alias_(alias)
+  {
+    if (alias == "") {
+      table_alias_ = table->name();
+    }
+  }
+  FieldExpr(const Field &field, const string alias = "") : field_(field), table_alias_(alias)
+  {
+    if (alias == "") {
+      table_alias_ = field.table_name();
+    }
+  }
 
   virtual ~FieldExpr() = default;
 
@@ -210,8 +221,11 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) const override;
 
+  const string field_alias() const { return table_alias_ + "." + field_.field_name(); }
+
 private:
-  Field field_;
+  Field  field_;
+  string table_alias_;
 };
 
 /**
@@ -492,4 +506,3 @@ public:
 private:
   std::unique_ptr<SelectSqlNode> subselect_;
 };
-

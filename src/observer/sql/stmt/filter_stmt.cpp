@@ -31,7 +31,8 @@ FilterStmt::~FilterStmt()
 }
 
 RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt, std::vector<Table *> father_tables)
+    ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt,
+    std::vector<pair<string, Table *>> father_tables)
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
@@ -82,7 +83,7 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
 }
 
 RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    ConditionSqlNode &condition, FilterUnit *&filter_unit, std::vector<Table *> father_tables)
+    ConditionSqlNode &condition, FilterUnit *&filter_unit, std::vector<pair<string, Table *>> father_tables)
 {
   RC rc = RC::SUCCESS;
 
@@ -97,11 +98,11 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   vector<unique_ptr<Expression>> bound_expressions;
   BinderContext                  binder_context;
   for (auto &table : *tables) {
-    binder_context.add_table(table.second);
+    binder_context.add_table(table.second, table.first);
   }
 
   for (auto &table : father_tables) {
-    binder_context.add_table(table);
+    binder_context.add_table(table.second, table.first);
   }
   ExpressionBinder expression_binder(binder_context);
 
@@ -132,5 +133,3 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   // 检查两个类型是否能够比较
   return rc;
 }
-
-

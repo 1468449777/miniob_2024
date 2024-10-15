@@ -17,8 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/trx.h"
 
 IndexScanPhysicalOperator::IndexScanPhysicalOperator(Table *table, Index *index, ReadWriteMode mode,
-    const Value *left_value, bool left_inclusive, const Value *right_value, bool right_inclusive)
-    : table_(table), index_(index), mode_(mode), left_inclusive_(left_inclusive), right_inclusive_(right_inclusive)
+    const Value *left_value, bool left_inclusive, const Value *right_value, bool right_inclusive,std::string table_alias)
+    : table_(table), index_(index), mode_(mode), left_inclusive_(left_inclusive), right_inclusive_(right_inclusive),table_alias_(table_alias)
 {
   if (left_value) {
     left_value_ = *left_value;
@@ -53,7 +53,7 @@ RC IndexScanPhysicalOperator::open(Trx *trx)
   }
   index_scanner_ = index_scanner;
 
-  tuple_.set_schema(table_, table_->table_meta().field_metas());
+  tuple_.set_schema(table_, table_->table_meta().field_metas(), table_alias_);
 
   trx_ = trx;
   return RC::SUCCESS;
@@ -121,7 +121,7 @@ Tuple *IndexScanPhysicalOperator::current_tuple()
   copied_record->copy_data(current_record_.data(), current_record_.len());
 
   tuple->set_record(copied_record);
-  tuple->set_schema(table_, table_->table_meta().field_metas());
+  tuple->set_schema(table_, table_->table_meta().field_metas(), table_alias_);
   return tuple;
 }
 
