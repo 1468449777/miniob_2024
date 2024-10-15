@@ -123,6 +123,10 @@ RC ExpressionBinder::bind_star_expression(
     return RC::SUCCESS;
   }
 
+  if(string(expr->name()) != ""){
+    return RC::ERROR;
+  }
+
   auto star_expr = static_cast<StarExpr *>(expr.get());
 
   vector<pair<string, Table *>> tables_to_wildcard;
