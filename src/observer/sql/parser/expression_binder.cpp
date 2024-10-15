@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <algorithm>
+#include <cstring>
 #include <memory>
 
 #include "common/log/log.h"
@@ -162,7 +163,7 @@ RC ExpressionBinder::bind_unbound_field_expression(
 
   Table *table = nullptr;
   if (is_blank(table_name)) {
-    table = context_.query_tables()[0].second;
+    table      = context_.query_tables()[0].second;
     table_name = context_.query_tables()[0].first.c_str();
   } else {
     table = context_.find_table(table_name);
@@ -189,6 +190,9 @@ RC ExpressionBinder::bind_unbound_field_expression(
     } else {
       std::string tmp_name = std::string(table_name) + "." + field_name;
       field_expr->set_name(tmp_name);
+    }
+    if (strcmp("", unbound_field_expr->name()) != 0) {
+      field_expr->set_name(unbound_field_expr->name());
     }
     bound_expressions.emplace_back(field_expr);
   }
@@ -491,8 +495,8 @@ RC ExpressionBinder::bind_subselect_expression(
         it.first, it.second->name());  // 将父亲的表 加入到子查询的 表中，以便子查询检查 过滤条件的有效性
   }
 
-  RC rc =
-      SelectStmt::create(context_.query_tables().front().second->db(), unbound_subselect_expr->sub_select_node(), select_stmt);
+  RC rc = SelectStmt::create(
+      context_.query_tables().front().second->db(), unbound_subselect_expr->sub_select_node(), select_stmt);
   if (OB_FAIL(rc)) {
     return rc;
   }

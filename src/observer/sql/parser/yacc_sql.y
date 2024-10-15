@@ -771,11 +771,18 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
       delete $4; // 不用delete $2 因为 $2 包含在$4里
     }
-    | rel_attr {
+    | rel_attr{
       RelAttrSqlNode *node = $1;
       $$ = new UnboundFieldExpr(node->relation_name, node->attribute_name);
       $$->set_name(token_name(sql_string, &@$));
       delete $1;
+    }
+    | rel_attr ID{
+      RelAttrSqlNode *node = $1;
+      $$ = new UnboundFieldExpr(node->relation_name, node->attribute_name);
+      $$->set_name($2);
+      delete $1;
+      free($2);
     }
     | '*' {
       $$ = new StarExpr();
@@ -801,8 +808,7 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
 
     }
-
-
+   
     ;
 
 
