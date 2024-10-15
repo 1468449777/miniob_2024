@@ -58,6 +58,7 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 
   vector<unique_ptr<Expression>> bound_expressions;
   BinderContext                  binder_context;
+  binder_context.set_db(db);
   binder_context.add_table(table,table->name());  // 添加表
   ExpressionBinder expression_binder(binder_context);
 

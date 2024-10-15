@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include <vector>
 
 #include "sql/expr/expression.h"
+#include "storage/db/db.h"
 #include "storage/table/table.h"
 
 class BinderContext
@@ -37,8 +38,13 @@ public:
 
   const std::vector<pair<std::string, Table *>> &query_tables() const { return query_tables_; }
 
+  void set_db(Db *db) { db_ = db; }
+
+  Db *db() { return db_; }
+
 private:
   std::vector<pair<std::string, Table *>> query_tables_;
+  Db                                     *db_;
 };
 
 /**

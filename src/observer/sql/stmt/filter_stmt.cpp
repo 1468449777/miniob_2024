@@ -97,6 +97,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   vector<unique_ptr<Expression>> bound_expressions;
   BinderContext                  binder_context;
+  binder_context.set_db(db);
   for (auto &table : *tables) {
     binder_context.add_table(table.second, table.first);
   }

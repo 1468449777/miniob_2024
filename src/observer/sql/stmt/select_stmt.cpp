@@ -41,6 +41,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   }
 
   BinderContext binder_context;
+  binder_context.set_db(db);
 
   // 将join table的相关信息直接合并到原先的select 语句中
   if (!select_sql.join_info.empty()) {

@@ -500,7 +500,7 @@ RC ExpressionBinder::bind_subselect_expression(
   }
 
   RC rc = SelectStmt::create(
-      context_.query_tables().front().second->db(), unbound_subselect_expr->sub_select_node(), select_stmt);
+      context_.db(), unbound_subselect_expr->sub_select_node(), select_stmt);
   if (OB_FAIL(rc)) {
     return rc;
   }
