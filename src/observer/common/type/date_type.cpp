@@ -111,21 +111,21 @@ RC DateType::to_string(const Value &val, string &result) const
             ss << std::setfill('0') << std::setw(2) << day;
           }
           else if (date_format[i + 1] == 'D') {
-            ss << day;
-            switch (day % 10) {
-              case 1:{
-                ss << "st";
-              } break;
-              case 2: {
-                ss << "nd";
-              } break;
-              case 3:{
-                ss << "rd";
-              } break;
-              default:
-                ss << "th";
-              break;
-            }
+            ss << day << "th";
+            // switch (day % 10) {
+            //   case 1:{
+            //     ss << "st";
+            //   } break;
+            //   case 2: {
+            //     ss << "nd";
+            //   } break;
+            //   case 3:{
+            //     ss << "rd";
+            //   } break;
+            //   default:
+            //     ss << "th";
+            //   break;
+            // }
           }
           else if (date_format[i + 1] == 'w') {
             ss << week_str_to_num_[week];
