@@ -92,6 +92,8 @@ public:
 
   std::vector<std::unique_ptr<PhysicalOperator>> &children() { return children_; }
 
+  virtual Tuple *get_tuple_directly() { return nullptr; }
+
 protected:
   std::vector<std::unique_ptr<PhysicalOperator>> children_;
 };

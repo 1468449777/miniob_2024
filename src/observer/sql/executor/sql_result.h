@@ -51,6 +51,9 @@ public:
   RC next_tuple(Tuple *&tuple);
   RC next_chunk(Chunk &chunk);
 
+  std::unique_ptr<PhysicalOperator> &op() {
+    return operator_;
+  }
 private:
   Session                          *session_ = nullptr;  ///< 当前所属会话
   std::unique_ptr<PhysicalOperator> operator_;           ///< 执行计划

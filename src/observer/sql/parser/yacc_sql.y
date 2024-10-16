@@ -199,6 +199,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
 %type <condition_list>      on
 %type <string>              storage_format
 %type <relation_list>       rel_list
+%type <relation_list>       from
 %type <expression>          expression
 %type <order_by_info>       order_by_expression_list
 %type <order_by_info>       order_by_info
@@ -645,7 +646,7 @@ update_value:
     };
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM rel_list join_list where group_by having_condition order_by_info
+    SELECT expression_list from join_list where group_by having_condition order_by_info
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -653,35 +654,35 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $2;
       }
 
+      if ($3 != nullptr) {
+        $$->selection.relations.swap(*$3);
+        delete $3;
+      }
+
       if ($4 != nullptr) {
-        $$->selection.relations.swap(*$4);
+        $$->selection.join_info.swap(*$4);
         delete $4;
       }
 
       if ($5 != nullptr) {
-        $$->selection.join_info.swap(*$5);
+        $$->selection.conditions.swap(*$5);
         delete $5;
       }
 
       if ($6 != nullptr) {
-        $$->selection.conditions.swap(*$6);
+        $$->selection.group_by.swap(*$6);
         delete $6;
       }
-
+      
       if ($7 != nullptr) {
-        $$->selection.group_by.swap(*$7);
+        $$->selection.group_by_conditions.swap(*$7);
         delete $7;
       }
-      
-      if ($8 != nullptr) {
-        $$->selection.group_by_conditions.swap(*$8);
-        delete $8;
-      }
 
-      if ($9 != nullptr) {
-        $$->selection.order_by.order_by_attrs.swap($9->order_by_attrs);
-        $$->selection.order_by.order_by_types.swap($9->order_by_types);
-        delete $9;
+      if ($8 != nullptr) {
+        $$->selection.order_by.order_by_attrs.swap($8->order_by_attrs);
+        $$->selection.order_by.order_by_types.swap($8->order_by_types);
+        delete $8;
       }
 
     }
@@ -694,6 +695,17 @@ calc_stmt:
       delete $2;
     }
     ;
+
+from :
+  {
+    // empty
+    $$ = nullptr;
+  }
+  | 
+  FROM rel_list{
+    $$ = $2;
+  }
+  ;
 
 join_list:
   {

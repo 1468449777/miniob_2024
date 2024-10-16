@@ -73,6 +73,16 @@ public:
     return rc;
   }
 
+  bool pure_value_expression() const override {
+    // bool ans = true;
+    for (auto &expr : expressions_) {
+      if (!expr->pure_value()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
 private:
   RC get_value(const ExprPointerType &expression, Value &value) const
   {

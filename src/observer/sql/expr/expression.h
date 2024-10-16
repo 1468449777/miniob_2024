@@ -120,6 +120,8 @@ public:
   virtual const char *name() const { return name_.c_str(); }
   virtual void        set_name(std::string name) { name_ = name; }
 
+  virtual bool pure_value() const { return false; }
+
   /**
    * @brief 表达式在下层算子返回的 chunk 中的位置
    */
@@ -247,6 +249,7 @@ public:
   void         get_value(Value &value) const { value = value_; }
   const Value &get_value() const { return value_; }
 
+  bool pure_value() const override { return true; }
 private:
   Value value_;
 };
@@ -541,13 +544,18 @@ public:
   }
 
   RC get_value(const Tuple &tuple, Value &value) const override;
-  RC try_get_value(Value &value) const override {
-    if (child_[0]->type() != ExprType::VALUE) {
-      return RC::ERROR;
-    }
-    return RC::SUCCESS;
-  }
+  RC try_get_value(Value &value) const override;
   
+  bool pure_value() const override {
+    // bool ans = true;
+    for (auto &cur_child : child_) {
+      if (cur_child->type() != ExprType::VALUE) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   AttrType value_type() const override {
     // AttrType type = AttrType::UNDEFINED;
     // switch (type_) {

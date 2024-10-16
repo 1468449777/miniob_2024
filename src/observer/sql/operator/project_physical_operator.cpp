@@ -42,6 +42,13 @@ RC ProjectPhysicalOperator::open(Trx *trx)
 
 RC ProjectPhysicalOperator::next()
 {
+  if (tuple_.pure_value_expression()) {
+    if (iterated_)  {
+      return RC::RECORD_EOF;
+    }
+    iterated_ = true;
+    return RC::SUCCESS;
+  }
   if (children_.empty()) {
     return RC::RECORD_EOF;
   }
@@ -57,6 +64,9 @@ RC ProjectPhysicalOperator::close()
 }
 Tuple *ProjectPhysicalOperator::current_tuple()
 {
+  if (tuple_.pure_value_expression() && iterated_) {
+    return &tuple_;
+  }
   tuple_.set_tuple(children_[0]->current_tuple());
   return &tuple_;
 }

@@ -96,6 +96,10 @@ public:
    */
   virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const = 0;
 
+  virtual bool pure_value_expression() const {
+    return false;
+  }
+
   virtual std::string to_string() const
   {
     std::string str;

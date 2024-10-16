@@ -40,7 +40,12 @@ public:
 
   RC tuple_schema(TupleSchema &schema) const override;
 
+  Tuple *get_tuple_directly() override {
+    return &tuple_;
+  }
+
 private:
   std::vector<std::unique_ptr<Expression>>     expressions_;
   ExpressionTuple<std::unique_ptr<Expression>> tuple_;
+  bool iterated_ = false;
 };

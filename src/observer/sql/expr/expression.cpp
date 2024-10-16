@@ -778,6 +778,38 @@ RC FunctionExpr::get_value(const Tuple &tuple, Value &value) const{
   return rc;
 }
 
+RC FunctionExpr::try_get_value(Value &value) const {
+  RC rc = RC::SUCCESS;
+  Value tmp_value;
+  Value result;
+
+  
+  rc = child_[0]->try_get_value(tmp_value);
+  if (OB_FAIL(rc)) {
+    return rc;
+  }
+  vector<Value> args;
+  args.emplace_back(tmp_value);
+  if (child_.size() > 1) {
+    for (int i = 1; i < child_.size(); i++) {
+      rc = child_[i]->try_get_value(tmp_value);
+      if (OB_FAIL(rc)) {
+        return rc;
+      }
+      args.emplace_back(tmp_value);
+    }
+  }
+
+  rc = execute(args, result);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("Fail to execut function.");
+    return rc;
+  }
+  value = result;
+
+  return rc;  
+}
+
 RC FunctionExpr::execute(const vector<Value> &values, Value &value) const {
   // Value res;
   RC rc = RC::SUCCESS;
