@@ -15,10 +15,16 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/update_physical_operator.h"
 #include "common/log/log.h"
 #include "common/type/attr_type.h"
+#include "sql/expr/expression.h"
+#include "sql/expr/tuple.h"
+#include "sql/expr/tuple_tools.h"
+#include "sql/operator/physical_operator.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
+#include "storage/view/view.h"
 #include "storage/trx/trx.h"
 #include <cstring>
+#include <vector>
 
 RC UpdatePhysicalOperator::open(Trx *trx)
 {
@@ -48,10 +54,44 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       LOG_WARN("failed to get current record: %s", strrc(rc));
       return rc;
     }
+    vector<RowTuple *> tuples;
+    RowTuple          *row_tuple = nullptr;
+    if (tuple->tuple_type() != TupleType::ROW) {  // 这里处理更新 View 的情况,
+      get_row_tuples<std::unique_ptr<Expression>>(tuple, tuples);
 
-    RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
-    Record   &record    = row_tuple->record();
-    // Record   new_record(record);                ///疑似存在浅拷贝问题，即new_record和record实际指向同一区域
+      std::vector<Expression *> origin_exprs;
+      const SubSelectExpr      *sub_select = table_->view()->sub_select();
+      if (OB_FAIL(sub_select->get_field_exprs(origin_exprs))) {
+        return RC::ERROR;
+      }
+
+      for (auto &expr : origin_exprs) {  // 只允许更新视图中的属性字段,检查是否可以更新
+        if (expr->type() != ExprType::FIELD) {
+          return RC::ERROR;
+        }
+      }
+
+      // 替换更新视图的属性列为物理表的属性列,默认即使是View，一次也最多更新一个表，若同时更新多表的列则报错
+      for (auto &it : values_) {
+        auto expr = origin_exprs[it.first->field_id()];
+        it.first  = static_cast<FieldExpr *>(expr)->field().meta();
+        table_    = const_cast<Table *>(static_cast<FieldExpr *>(expr)->field().table());
+      }
+
+      // 找的物理表的tuple
+      for (auto &it : tuples) {
+        if (strcmp(table_->name(), it->table()->name()) == 0) {
+          row_tuple = it;
+          break;
+        }
+      }
+
+    } else { // 这里为普通的物理表更新
+      row_tuple = static_cast<RowTuple *>(tuple);
+    }
+
+    Record &record = row_tuple->record();
+    // Record   new_record(record);
     char *new_record_data = (char *)malloc(record.len() * sizeof(char));
     memcpy(new_record_data, record.data(), record.len());
 
@@ -64,8 +104,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       memcpy(new_record_data + it.first->offset(), it.second.data(), copy_len);
       memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1);  // 修改null标记位
     }
-    // TODO: 需要做unique处理, 否则影响唯一性约束
-    //
+
     rc = trx_->update_record(table_, record, new_record_data, record.len());
 
     if (rc != RC::SUCCESS) {

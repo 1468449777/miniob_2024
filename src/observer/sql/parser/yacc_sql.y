@@ -81,6 +81,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
         GROUP
         ORDER
         TABLE
+        VIEW
         TABLES
         INDEX
         UNIQUE
@@ -223,6 +224,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
 %type <sql_node>            update_stmt
 %type <sql_node>            delete_stmt
 %type <sql_node>            create_table_stmt
+%type <sql_node>            create_view_stmt
 %type <sql_node>            drop_table_stmt
 %type <sql_node>            show_tables_stmt
 %type <sql_node>            desc_table_stmt
@@ -262,6 +264,7 @@ command_wrapper:
   | update_stmt
   | delete_stmt
   | create_table_stmt
+  | create_view_stmt
   | drop_table_stmt
   | show_tables_stmt
   | desc_table_stmt
@@ -549,6 +552,22 @@ attr_def:
     }
     ;
 
+create_view_stmt:    /*create view 语句的语法解析树*/
+    CREATE VIEW ID AS select_stmt 
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_VIEW);
+      CreateViewSqlNode &create_view = $$->create_view;
+      create_view.relation_name = $3;
+      free($3);
+
+      SelectSqlNode *sqlnode = new SelectSqlNode;
+      (*sqlnode) = std::move($5->selection);
+      delete $5;
+      Expression * expr = new UnboundSubSelectExpr(sqlnode);
+      create_view.sub_select=std::unique_ptr<Expression>(expr);      
+    }
+
+    ;
 
 number:
     NUMBER {$$ = $1;}

@@ -26,6 +26,18 @@ See the Mulan PSL v2 for more details. */
 #include "storage/record/record.h"
 
 class Table;
+enum class TupleType
+{
+  NONE,
+  ROW,
+  PROJECT,
+  JOIN,
+  VALUE,
+  EMPTY,
+  COMPOSITE,
+  EXPRESSION,
+
+};
 
 /**
  * @defgroup Tuple
@@ -78,6 +90,7 @@ public:
    */
   virtual int cell_num() const = 0;
 
+  virtual TupleType tuple_type() const = 0;
   /**
    * @brief 获取指定位置的Cell
    *
@@ -96,9 +109,7 @@ public:
    */
   virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const = 0;
 
-  virtual bool pure_value_expression() const {
-    return false;
-  }
+  virtual bool pure_value_expression() const { return false; }
 
   virtual std::string to_string() const
   {
@@ -175,6 +186,8 @@ public:
     speces_.clear();
   }
 
+  TupleType tuple_type() const override { return TupleType::ROW; }
+
   void set_record(Record *record) { this->record_ = record; }
 
   void set_schema(const Table *table, const std::vector<FieldMeta> *fields, string table_alias)
@@ -233,7 +246,8 @@ public:
 
     for (size_t i = 0; i < speces_.size(); ++i) {
       const FieldExpr *field_expr = speces_[i];
-      if (0 == strcmp(spec.alias(), field_expr->field_alias().c_str())) {           // 这里的field_alias 和 field_name 不是同一个东西
+      if (0 ==
+          strcmp(spec.alias(), field_expr->field_alias().c_str())) {  // 这里的field_alias 和 field_name 不是同一个东西
         return cell_at(i, cell);
       }
     }
@@ -255,6 +269,8 @@ public:
   Record &record() { return *record_; }
 
   const Record &record() const { return *record_; }
+
+  const Table *table() { return table_; }
 
 private:
   Record                  *record_ = nullptr;
@@ -282,6 +298,8 @@ public:
   auto get_expressions() const -> const std::vector<std::unique_ptr<Expression>> & { return expressions_; }
 
   void set_tuple(Tuple *tuple) { this->tuple_ = tuple; }
+
+  TupleType tuple_type() const override { return TupleType::PROJECT; }
 
   int cell_num() const override { return static_cast<int>(expressions_.size()); }
 
@@ -316,6 +334,8 @@ public:
     return RC::SUCCESS;
   }
 #endif
+  Tuple *child_tuple() { return tuple_; }
+
 private:
   std::vector<std::unique_ptr<Expression>> expressions_;
   Tuple                                   *tuple_ = nullptr;
@@ -393,6 +413,8 @@ public:
     return RC::SUCCESS;
   }
 
+  TupleType tuple_type() const override { return TupleType::VALUE; }
+
 private:
   std::vector<Value>         cells_;
   std::vector<TupleCellSpec> specs_;
@@ -465,7 +487,30 @@ public:
     return right_->find_cell(spec, value);
   }
 
+  TupleType tuple_type() const override { return TupleType::JOIN; }
+
+  Tuple *left() { return left_; }
+  Tuple *right() { return right_; }
+
 private:
   Tuple *left_  = nullptr;
   Tuple *right_ = nullptr;
+};
+
+// 单纯为了给fatheroper的tuple 设置一个初始空值
+class EmptyTuple : public Tuple
+{
+public:
+  EmptyTuple()          = default;
+  virtual ~EmptyTuple() = default;
+
+  int cell_num() const override { return 0; }
+
+  RC cell_at(int index, Value &cell) const override { return RC::INVALID_ARGUMENT; }
+
+  RC spec_at(int index, TupleCellSpec &spec) const override { return RC::INVALID_ARGUMENT; }
+
+  RC find_cell(const TupleCellSpec &spec, Value &cell) const override { return RC::NOTFOUND; }
+
+  TupleType tuple_type() const override { return TupleType::EMPTY; }
 };

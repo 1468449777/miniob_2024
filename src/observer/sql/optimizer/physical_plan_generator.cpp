@@ -41,6 +41,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/project_vec_physical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/table_scan_physical_operator.h"
+#include "sql/operator/view_scan_physical_operator.h"
 #include "sql/operator/group_by_logical_operator.h"
 #include "sql/operator/group_by_physical_operator.h"
 #include "sql/operator/hash_group_by_physical_operator.h"
@@ -143,6 +144,15 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
   vector<unique_ptr<Expression>> &predicates = table_get_oper.predicates();
   // 看看是否有可以用于索引查找的表达式
   Table *table = table_get_oper.table();
+
+  if (table->is_view()) {
+    auto table_scan_oper =
+        new ViewScanPhysicalOperator(table, table_get_oper.read_write_mode(), table_get_oper.table_alias());
+    table_scan_oper->set_predicates(std::move(predicates));
+    oper = unique_ptr<PhysicalOperator>(table_scan_oper);
+    LOG_TRACE("use table scan");
+    return RC::SUCCESS;
+  }
 
   Index     *index      = nullptr;
   ValueExpr *value_expr = nullptr;

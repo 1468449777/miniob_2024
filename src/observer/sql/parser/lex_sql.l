@@ -89,6 +89,7 @@ ASC                                     RETURN_TOKEN(ASC);
 CREATE                                  RETURN_TOKEN(CREATE);
 DROP                                    RETURN_TOKEN(DROP);
 TABLE                                   RETURN_TOKEN(TABLE);
+VIEW                                    RETURN_TOKEN(VIEW);
 TABLES                                  RETURN_TOKEN(TABLES);
 INDEX                                   RETURN_TOKEN(INDEX);
 UNIQUE              			              RETURN_TOKEN(UNIQUE);

@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/algorithm.h"
 #include "common/log/log.h"
 #include "common/global_context.h"
+#include "sql/operator/physical_operator.h"
 #include "storage/db/db.h"
 #include "storage/buffer/disk_buffer_pool.h"
 #include "storage/common/condition_filter.h"
@@ -30,6 +31,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/record/record_manager.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
+#include "storage/view/view.h"
 
 Table::~Table()
 {
@@ -127,6 +129,14 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   return rc;
 }
 
+RC Table::create(Db *db, int32_t table_id, View *view)
+{
+  db_         = db;
+  view_       = view;
+  table_meta_ = view->table_meta();
+  return RC::SUCCESS;
+}
+
 RC Table::drop()
 {
   RC rc = RC::SUCCESS;
@@ -178,7 +188,7 @@ RC Table::open(Db *db, const char *meta_file, const char *base_dir)
   for (int i = 0; i < index_num; i++) {
     const IndexMeta *index_meta = table_meta_.index(i);
     const FieldMeta *field_metas[index_meta->field_num()];
-    for(int i = 0; i < index_meta->field_num(); ++i){
+    for (int i = 0; i < index_meta->field_num(); ++i) {
       field_metas[i] = table_meta_.field(index_meta->field(i));
       if (field_metas[i] == nullptr) {
         LOG_ERROR("Found invalid index meta info which has a non-exists field. table=%s, index=%s, field=%s",
@@ -219,8 +229,8 @@ RC Table::insert_record(Record &record)
   }
 
   rc = insert_entry_of_indexes(record, record.rid());
-  if (rc != RC::SUCCESS) { // 可能出现了键值重复
-    RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false/*error_on_not_exists*/);
+  if (rc != RC::SUCCESS) {  // 可能出现了键值重复
+    RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false /*error_on_not_exists*/);
     // if (rc2 != RC::SUCCESS) {
     //   LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
     //             name(), rc2, strrc(rc2));
@@ -392,7 +402,7 @@ RC Table::create_index(Trx *trx, vector<const FieldMeta *> field_meta, const cha
     return RC::INVALID_ARGUMENT;
   }
 
-  const int attr_num = field_meta.size();
+  const int        attr_num = field_meta.size();
   const FieldMeta *field_metas[attr_num];
   for (int i = 0; i < attr_num; ++i) {
     field_metas[i] = field_meta[i];
@@ -410,7 +420,7 @@ RC Table::create_index(Trx *trx, vector<const FieldMeta *> field_meta, const cha
   // 创建索引相关数据
   BplusTreeIndex *index      = new BplusTreeIndex();
   string          index_file = table_index_file(base_dir_.c_str(), name(), index_name);
-  rc = index->create(this, index_file.c_str(), new_index_meta, field_metas, attr_num);
+  rc                         = index->create(this, index_file.c_str(), new_index_meta, field_metas, attr_num);
   if (rc != RC::SUCCESS) {
     delete index;
     LOG_ERROR("Failed to create bplus tree index. file name=%s, rc=%d:%s", index_file.c_str(), rc, strrc(rc));
@@ -429,15 +439,16 @@ RC Table::create_index(Trx *trx, vector<const FieldMeta *> field_meta, const cha
   Record record;
   while (OB_SUCC(rc = scanner.next(record))) {
     int field_indexes[20];
-    for(int i = 0; i < index->field_metas().size(); i++){
-      const int field_index = this->table_meta().find_field_index_by_name(index->field_metas()[i].name()) - this->table_meta().sys_field_num();
+    for (int i = 0; i < index->field_metas().size(); i++) {
+      const int field_index = this->table_meta().find_field_index_by_name(index->field_metas()[i].name()) -
+                              this->table_meta().sys_field_num();
       field_indexes[i] = field_index;
     }
     rc = index->insert_entry(record, &record.rid(), table_meta_.record_size(), field_indexes);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to insert record into index while creating index. table=%s, index=%s, rc=%s",
                name(), index_name, strrc(rc));
-      return rc;         
+      return rc;
     }
   }
   if (RC::RECORD_EOF == rc) {
@@ -520,8 +531,12 @@ RC Table::delete_record(const Record &record)
 
 RC Table::update_record(Record &record, char *new_record_data, int new_record_len)
 {
+  if (is_view()) {
+    return view_->update_record(record, new_record_data, new_record_len);
+  }
+
   RC rc = RC::SUCCESS;
-  if(record.data() == nullptr){
+  if (record.data() == nullptr) {
     return RC::EMPTY;
   }
 
@@ -530,7 +545,7 @@ RC Table::update_record(Record &record, char *new_record_data, int new_record_le
     // LOG_ERROR("Failed to update indexes of record (rid=%d.%d). rc=%d:%s",
     //            record.rid().page_num, record.rid().slot_num, rc, strrc(rc));
     return rc;
-  } 
+  }
 
   record.set_data_owner(new_record_data, new_record_len);
   rc = record_handler_->update_record(&record);
@@ -538,12 +553,12 @@ RC Table::update_record(Record &record, char *new_record_data, int new_record_le
   return rc;
 }
 
-RC Table::update_entry_of_indexes(const char *record, const char *new_record, const RID &rid) 
+RC Table::update_entry_of_indexes(const char *record, const char *new_record, const RID &rid)
 {
-  RC rc = RC::SUCCESS;
+  RC  rc          = RC::SUCCESS;
   int record_size = table_meta_.record_size();
   for (Index *index : indexes_) {
-    int record_null = 0; 
+    int record_null = 0;
     for (FieldMeta field_meta : index->field_metas()) {
       if (*(bool *)(record + record_size - field_meta.field_id() - 1)) {
         record_null = 1;
@@ -563,7 +578,7 @@ RC Table::insert_entry_of_indexes(Record &record, const RID &rid)
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
     int field_indexes[20];
-    for(int i = 0; i < index->field_metas().size(); i++){
+    for (int i = 0; i < index->field_metas().size(); i++) {
       field_indexes[i] = index->field_metas()[i].field_id();
     }
     rc = index->insert_entry(record, &rid, table_meta_.record_size(), field_indexes);
