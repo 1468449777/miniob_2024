@@ -16,6 +16,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/physical_operator.h"
 #include "sql/expr/expression_tuple.h"
+#include "sql/parser/parse_defs.h"
+#include <vector>
 
 /**
  * @brief 选择/投影物理算子
@@ -39,7 +41,8 @@ public:
   Tuple *current_tuple() override;
 
   RC tuple_schema(TupleSchema &schema) const override;
-
+  
+  RC tuple_meta(std::vector<AttrInfoSqlNode> &attr_infos,Db *db);
   Tuple *get_tuple_directly() override {
     return &tuple_;
   }

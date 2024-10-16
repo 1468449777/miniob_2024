@@ -37,7 +37,7 @@ UpdateStmt::~UpdateStmt()
     filter_stmt_ = nullptr;
   }
 }
-
+//   除select外，其他写语句均不支持 alias
 RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 {
   const char *table_name = update.relation_name.c_str();
@@ -58,7 +58,8 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 
   vector<unique_ptr<Expression>> bound_expressions;
   BinderContext                  binder_context;
-  binder_context.add_table(table);  // 添加表
+  binder_context.set_db(db);
+  binder_context.add_table(table,table->name());  // 添加表
   ExpressionBinder expression_binder(binder_context);
 
   for (auto &update_node : update.update_values) {

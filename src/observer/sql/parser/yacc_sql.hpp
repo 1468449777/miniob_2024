@@ -123,12 +123,13 @@ extern int yydebug;
     LENGTH = 324,                  /* LENGTH  */
     ROUND = 325,                   /* ROUND  */
     DATE_FORMAT = 326,             /* DATE_FORMAT  */
-    NUMBER = 327,                  /* NUMBER  */
-    FLOAT = 328,                   /* FLOAT  */
-    ID = 329,                      /* ID  */
-    SSS = 330,                     /* SSS  */
-    DATE_STR = 331,                /* DATE_STR  */
-    UMINUS = 332                   /* UMINUS  */
+    AS = 327,                      /* AS  */
+    NUMBER = 328,                  /* NUMBER  */
+    FLOAT = 329,                   /* FLOAT  */
+    ID = 330,                      /* ID  */
+    SSS = 331,                     /* SSS  */
+    DATE_STR = 332,                /* DATE_STR  */
+    UMINUS = 333                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -137,7 +138,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 148 "yacc_sql.y"
+#line 149 "yacc_sql.y"
 
   ParsedSqlNode *                            sql_node;
   ConditionSqlNode *                         condition;
@@ -154,7 +155,8 @@ union YYSTYPE
   std::vector<Value> *                       value_list;
   std::vector<ConditionSqlNode> *            condition_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
-  std::vector<std::string> *                 relation_list;
+  std::vector<std::pair<std::string,std::string>> *                 relation_list;
+  std::pair<std::string,std::string> *         relation;
   char *                                     string;
   const char *                               const_string;
   int                                        number;
@@ -166,7 +168,7 @@ union YYSTYPE
   std::vector<JoinEntry> *                   join_list;
   SelectSqlNode *                            sub_select;
 
-#line 170 "yacc_sql.hpp"
+#line 172 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

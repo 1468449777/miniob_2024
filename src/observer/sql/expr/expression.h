@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "common/type/attr_type.h"
 #include "common/value.h"
+#include "sql/expr/tuple_cell.h"
 #include "sql/parser/parse_defs.h"
 #include "sql/stmt/select_stmt.h"
 #include "storage/field/field.h"
@@ -194,8 +195,23 @@ class FieldExpr : public Expression
 {
 public:
   FieldExpr() = default;
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {}
-  FieldExpr(const Field &field) : field_(field) {}
+  FieldExpr(const Table *table, const FieldMeta *field, const string alias = "")
+      : field_(table, field), table_alias_(alias)
+  {
+    if (alias == "") {
+      table_alias_ = table->name();
+    }
+    string field_alias = table_alias_ + "." + string(field_name());
+    field_spec_        = make_unique<TupleCellSpec>(table_name(), field_name(), field_alias.c_str());
+  }
+  FieldExpr(const Field &field, const string alias = "") : field_(field), table_alias_(alias)
+  {
+    if (alias == "") {
+      table_alias_ = field.table_name();
+    }
+    string field_alias = table_alias_ + "." + string(field_name());
+    field_spec_        = make_unique<TupleCellSpec>(table_name(), field_name(), field_alias.c_str());
+  }
 
   virtual ~FieldExpr() = default;
 
@@ -216,8 +232,12 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) const override;
 
+  const string field_alias() const { return table_alias_ + "." + field_.field_name(); }
+
 private:
-  Field field_;
+  Field                          field_;
+  string                         table_alias_;
+  std::unique_ptr<TupleCellSpec> field_spec_;  // 这个成员是为了避免每次getvalue 都重新 new 一个
 };
 
 /**
@@ -499,7 +519,6 @@ public:
 private:
   std::unique_ptr<SelectSqlNode> subselect_;
 };
-
 class FunctionExpr;
 class UnboundFunctionExpr : public Expression {
 public:

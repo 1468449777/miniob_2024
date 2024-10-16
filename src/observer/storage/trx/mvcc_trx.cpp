@@ -188,7 +188,25 @@ RC MvccTrx::delete_record(Table *table, Record &record)
 
 RC MvccTrx::update_record(Table *table, Record &record, char *new_record_data, int new_record_len)
 {
-  return RC::SUCCESS;
+  Field begin_field;
+  Field end_field;
+  trx_fields(table, begin_field, end_field);
+
+  begin_field.set_int(record, -trx_id_);
+  end_field.set_int(record, trx_kit_.max_trx_id());
+
+  RC rc = table->update_record(record, new_record_data, new_record_len);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to insert record into table. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  rc = log_handler_.update_record(trx_id_, table, record.rid());
+  ASSERT(rc == RC::SUCCESS, "failed to append insert record log. trx id=%d, table id=%d, rid=%s, record len=%d, rc=%s",
+         trx_id_, table->table_id(), record.rid().to_string().c_str(), record.len(), strrc(rc));
+
+  operations_.push_back(Operation(Operation::Type::INSERT, table, record.rid()));
+  return rc;
 }
 
 RC MvccTrx::visit_record(Table *table, Record &record, ReadWriteMode mode)

@@ -14,15 +14,16 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/project_physical_operator.h"
 #include "common/log/log.h"
+#include "sql/expr/expression.h"
+#include "storage/db/db.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
 
 using namespace std;
 
 ProjectPhysicalOperator::ProjectPhysicalOperator(vector<unique_ptr<Expression>> &&expressions)
-  : expressions_(std::move(expressions)), tuple_(expressions_)
-{
-}
+    : expressions_(std::move(expressions)), tuple_(expressions_)
+{}
 
 RC ProjectPhysicalOperator::open(Trx *trx)
 {
@@ -75,6 +76,23 @@ RC ProjectPhysicalOperator::tuple_schema(TupleSchema &schema) const
 {
   for (const unique_ptr<Expression> &expression : expressions_) {
     schema.append_cell(expression->name());
+  }
+  return RC::SUCCESS;
+}
+
+RC ProjectPhysicalOperator::tuple_meta(std::vector<AttrInfoSqlNode> &attr_infos, Db *db)
+{
+  for (const unique_ptr<Expression> &expression : expressions_) {
+    if (expression->type() == ExprType::FIELD) {
+      FieldExpr       *field_expr = static_cast<FieldExpr *>(expression.get());
+      const FieldMeta *meta       = field_expr->field().meta();
+      AttrInfoSqlNode  attr_info{meta->type(), meta->name(), static_cast<size_t>(meta->len()), meta->can_be_null()};
+      attr_infos.push_back(attr_info);
+    } else {
+      AttrInfoSqlNode attr_info{
+          expression->value_type(), expression->name(), static_cast<size_t>(expression->value_length()), true};
+      attr_infos.push_back(attr_info);
+    }
   }
   return RC::SUCCESS;
 }

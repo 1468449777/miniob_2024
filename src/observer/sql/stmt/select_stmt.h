@@ -44,16 +44,16 @@ public:
   static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt);
 
 public:
-  const std::vector<Table *>               &tables() const { return tables_; }
-  FilterStmt                               *filter_stmt() const { return filter_stmt_; }
-  FilterStmt                               *group_by_filter_stmt() const { return group_by_filter_stmt_; }
-  std::vector<std::unique_ptr<Expression>> &query_expressions() { return query_expressions_; }
-  std::vector<std::unique_ptr<Expression>> &group_by() { return group_by_; }
-  OrderByInfo                              &order_by() { return order_by_; }
+  const std::vector<std::pair<string, Table *>> &tables() const { return tables_; }
+  FilterStmt                                    *filter_stmt() const { return filter_stmt_; }
+  FilterStmt                                    *group_by_filter_stmt() const { return group_by_filter_stmt_; }
+  std::vector<std::unique_ptr<Expression>>      &query_expressions() { return query_expressions_; }
+  std::vector<std::unique_ptr<Expression>>      &group_by() { return group_by_; }
+  OrderByInfo                                   &order_by() { return order_by_; }
 
 private:
   std::vector<std::unique_ptr<Expression>> query_expressions_;
-  std::vector<Table *>                     tables_;
+  std::vector<std::pair<string, Table *>>  tables_;  // pair.fisrt 为表的alias
   FilterStmt                              *filter_stmt_ = nullptr;
   std::vector<std::unique_ptr<Expression>> group_by_;
   FilterStmt                              *group_by_filter_stmt_ = nullptr;

@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 #include <memory>
@@ -104,7 +105,7 @@ struct OrderByInfo
 };
 
 struct JoinEntry {
-  std::string join_table;
+  std::pair<std::string,std::string> join_table;
   std::vector<ConditionSqlNode> join_conditions;
   // JoinEntry() : join_table {""}, join_conditions {std::vector<ConditionSqlNode>{}} {}
 };
@@ -121,9 +122,9 @@ struct JoinEntry {
 
 struct SelectSqlNode
 { 
-  std::vector<std::string>                 father_relations;  ///< 用于子查询检查属性的有效性，并不用于真正的查询
+  std::vector<std::pair<std::string,std::string>>                 father_relations;  ///< 用于子查询检查属性的有效性，并不用于真正的查询
   std::vector<std::unique_ptr<Expression>> expressions;  ///< 查询的表达式
-  std::vector<std::string>                 relations;    ///< 查询的表
+  std::vector<std::pair<std::string,std::string>>        relations;    ///< 查询的表
   std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件
   std::vector<ConditionSqlNode>            group_by_conditions;   ///< 查询条件，使用AND串联起来多个条件
   std::vector<std::unique_ptr<Expression>> group_by;     ///< group by clause
@@ -201,6 +202,7 @@ struct CreateTableSqlNode
 {
   std::string                  relation_name;   ///< Relation name
   std::vector<AttrInfoSqlNode> attr_infos;      ///< attributes
+  std::unique_ptr<Expression>  sub_select;
   std::string                  storage_format;  ///< storage format
 };
 

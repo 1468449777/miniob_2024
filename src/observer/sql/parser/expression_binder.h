@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include <vector>
 
 #include "sql/expr/expression.h"
+#include "storage/db/db.h"
+#include "storage/table/table.h"
 
 class BinderContext
 {
@@ -24,14 +26,25 @@ public:
   BinderContext()          = default;
   virtual ~BinderContext() = default;
 
-  void add_table(Table *table) { query_tables_.push_back(table); }
+  void add_table(Table *table, std::string alias = "")
+  {
+    if (alias == "") {
+      alias = table->name();
+    }
+    query_tables_.push_back({alias, table});
+  }
 
   Table *find_table(const char *table_name) const;
 
-  const std::vector<Table *> &query_tables() const { return query_tables_; }
+  const std::vector<pair<std::string, Table *>> &query_tables() const { return query_tables_; }
+
+  void set_db(Db *db) { db_ = db; }
+
+  Db *db() { return db_; }
 
 private:
-  std::vector<Table *> query_tables_;
+  std::vector<pair<std::string, Table *>> query_tables_;
+  Db                                     *db_;
 };
 
 /**
@@ -45,7 +58,7 @@ public:
   virtual ~ExpressionBinder() = default;
 
   RC bind_expression(std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
-  
+
 private:
   RC bind_star_expression(
       std::unique_ptr<Expression> &star_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
@@ -69,6 +82,7 @@ private:
       std::unique_ptr<Expression> &aggregate_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
   RC bind_function_expression(
       std::unique_ptr<Expression> &function_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+
 private:
   BinderContext &context_;
 };

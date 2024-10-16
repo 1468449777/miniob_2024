@@ -14,9 +14,13 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/table_get_logical_operator.h"
 
-TableGetLogicalOperator::TableGetLogicalOperator(Table *table, ReadWriteMode mode)
-    : table_(table), mode_(mode)
-{}
+TableGetLogicalOperator::TableGetLogicalOperator(Table *table, ReadWriteMode mode, std::string table_alias)
+    : table_(table), mode_(mode), table_alias_(table_alias)
+{
+  if (table_alias == "") {
+    table_alias_ = table->name();
+  }
+}
 
 void TableGetLogicalOperator::set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs)
 {

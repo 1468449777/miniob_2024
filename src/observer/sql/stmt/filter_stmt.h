@@ -85,10 +85,10 @@ public:
 public:
   // 目前 这个father_tables 只有select支持，其他的不确定有没有影响
   static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt, std::vector<Table *> father_tables = {});
+      ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt, std::vector<pair<string,Table *>> father_tables = {});
 
   static RC create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      ConditionSqlNode &condition, FilterUnit *&filter_unit, std::vector<Table *> father_tables = {});
+      ConditionSqlNode &condition, FilterUnit *&filter_unit, std::vector<pair<string,Table *>> father_tables = {});
 
 private:
   std::vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系

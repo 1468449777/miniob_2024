@@ -31,10 +31,7 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
-{
-  return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
-}
+RC FieldExpr::get_value(const Tuple &tuple, Value &value) const { return tuple.find_cell(*field_spec_, value); }
 
 bool FieldExpr::equal(const Expression &other) const
 {

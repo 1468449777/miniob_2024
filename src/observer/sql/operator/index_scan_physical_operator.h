@@ -27,7 +27,7 @@ class IndexScanPhysicalOperator : public PhysicalOperator
 {
 public:
   IndexScanPhysicalOperator(Table *table, Index *index, ReadWriteMode mode, const Value *left_value,
-      bool left_inclusive, const Value *right_value, bool right_inclusive);
+      bool left_inclusive, const Value *right_value, bool right_inclusive,std::string table_alias);
 
   virtual ~IndexScanPhysicalOperator() = default;
 
@@ -65,5 +65,7 @@ private:
 
   std::vector<std::unique_ptr<Expression>> predicates_;
 
-  std::vector<RowTuple*> copied_tuples_;
+  std::vector<RowTuple *> copied_tuples_;
+
+  string table_alias_;
 };

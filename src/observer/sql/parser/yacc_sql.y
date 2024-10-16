@@ -143,6 +143,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
         LENGTH
         ROUND
         DATE_FORMAT
+        AS
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -161,7 +162,8 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
   std::vector<Value> *                       value_list;
   std::vector<ConditionSqlNode> *            condition_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
-  std::vector<std::string> *                 relation_list;
+  std::vector<std::pair<std::string,std::string>> *                 relation_list;
+  std::pair<std::string,std::string> *         relation;
   char *                                     string;
   const char *                               const_string;
   int                                        number;
@@ -186,7 +188,8 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
 %type <condition>           condition
 %type <value>               value
 %type <number>              number
-%type <string>              relation
+%type <relation>              relation
+%type <string>              as_alias
 %type <const_string>        aggregate_type
 %type <comp>                comp_op
 %type <rel_attr>            rel_attr
@@ -201,6 +204,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
 %type <relation_list>       rel_list
 %type <relation_list>       from
 %type <expression>          expression
+%type <expression>          expression_with_alias
 %type <order_by_info>       order_by_expression_list
 %type <order_by_info>       order_by_info
 %type <expression_list>     expression_list
@@ -235,7 +239,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
 %type <sql_node>            exit_stmt
 %type <sql_node>            command_wrapper
 %type <const_string>        function_type
-%type <string>              function_ret_name
+
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
@@ -411,6 +415,42 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       if ($8 != nullptr) {
         create_table.storage_format = $8;
         free($8);
+      }
+    }
+    |   CREATE TABLE ID AS select_stmt storage_format
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      free($3);
+
+      SelectSqlNode *sqlnode = new SelectSqlNode;
+      (*sqlnode) = std::move($5->selection);
+      delete $5;
+      Expression * expr = new UnboundSubSelectExpr(sqlnode);
+      create_table.sub_select=std::unique_ptr<Expression>(expr);
+      
+      if ($6 != nullptr) {
+        create_table.storage_format = $6;
+        free($6);
+      }
+    }
+    |   CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE select_stmt storage_format
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      free($3);
+
+      SelectSqlNode *sqlnode = new SelectSqlNode;
+      (*sqlnode) = std::move($8->selection);
+      delete $8;
+      Expression * expr = new UnboundSubSelectExpr(sqlnode);
+      create_table.sub_select=std::unique_ptr<Expression>(expr);
+      
+      if ($9 != nullptr) {
+        create_table.storage_format = $9;
+        free($9);
       }
     }
     ;
@@ -727,8 +767,8 @@ join_list:
 join_entry:
   INNER JOIN relation on {
     $$ = new JoinEntry;
-    $$->join_table = std::string($3);
-    free($3);
+    $$->join_table = *$3;
+    delete($3);
     if ($4 != nullptr) {
       $$->join_conditions.swap(*$4);
       delete $4;
@@ -747,13 +787,24 @@ on:
     $$ = $2;
   }
   ;
+
+as_alias:
+ 
+    ID{
+    $$ = $1;
+  }  
+  |  AS ID{
+    $$ = $2;
+  } 
+  ;
+
 expression_list:
-    expression
+    expression_with_alias
     {
       $$ = new std::vector<std::unique_ptr<Expression>>;
       $$->emplace_back($1);
     }
-    | expression COMMA expression_list
+    | expression_with_alias COMMA expression_list
     {
       if ($3 != nullptr) {
         $$ = $3;
@@ -763,6 +814,17 @@ expression_list:
       $$->emplace($$->begin(), $1);
     }
     ;
+
+expression_with_alias:
+ 
+    expression as_alias{
+      $1->set_name($2);
+      $$ = $1;
+    }
+    |  expression{
+      $$ = $1;
+    } ;
+
 expression:
     expression '+' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
@@ -797,7 +859,7 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
       delete $4; // 不用delete $2 因为 $2 包含在$4里
     }
-    | rel_attr {
+    | rel_attr{
       RelAttrSqlNode *node = $1;
       $$ = new UnboundFieldExpr(node->relation_name, node->attribute_name);
       $$->set_name(token_name(sql_string, &@$));
@@ -828,12 +890,12 @@ expression:
 
     }
     |
-    function_type LBRACE expression_list RBRACE function_ret_name {
+    function_type LBRACE expression_list RBRACE {
       $$ = create_function_expression($1, $3, sql_string, &@$);
-      if ($5 != nullptr) {
-        $$->set_name($5);
+      //if ($5 != nullptr) {
+      //  $$->set_name($5);
         //delete $5;
-      }
+      //}
     }
     ;
 
@@ -851,16 +913,7 @@ function_type :
     }
     ;
 
-function_ret_name:
-  {
-    $$ = nullptr;
-  }
-  |
-  ID
-  {
-    $$ = $1;
-  }
-  ;
+
 
 aggregate_type:
     SUM{
@@ -891,28 +944,43 @@ rel_attr:
       free($1);
       free($3);
     }
+    | ID DOT '*'{
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = '*';
+      free($1);
+    }
     ;
 
 relation:
-    ID {
-      $$ = $1;
+    ID as_alias {
+      $$ = new std::pair<std::string,std::string>();
+      (*$$) = std::make_pair(std::string($2),std::string($1));
+      free($1);
+      free($2);
+    }|
+    ID{
+      $$ = new std::pair<std::string,std::string>();
+      (*$$) = std::make_pair(std::string($1),std::string($1));
+      free($1);
+      
     }
     ;
 rel_list:
     relation {
-      $$ = new std::vector<std::string>();
-      $$->push_back($1);
-      free($1);
+      $$ = new std::vector<std::pair<std::string,std::string>>();
+      $$->push_back(*$1);
+      delete($1);
     }
     | relation COMMA rel_list {
       if ($3 != nullptr) {
         $$ = $3;
       } else {
-        $$ = new std::vector<std::string>;
+        $$ = new std::vector<std::pair<std::string,std::string>>();
       }
 
-      $$->insert($$->begin(), $1);
-      free($1);
+      $$->insert($$->begin(), *$1);
+      delete($1);
     }
     ;
 
@@ -1053,7 +1121,10 @@ sub_select:
     (*$$) = std::move($2->selection);
     delete $2;
 
-  };
+  }
+  
+  
+  ;
   
 
 

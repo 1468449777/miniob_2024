@@ -100,6 +100,6 @@ RC SubSelectExpr::try_get_value(Value &value) const
 {
   RowTuple                     empty_tuple;
   const std::vector<FieldMeta> fields;
-  empty_tuple.set_schema(subselect_->tables()[0], &fields);
+  empty_tuple.set_schema(subselect_->tables()[0].second, &fields, "empty_table");
   return get_value(empty_tuple, value);
 }

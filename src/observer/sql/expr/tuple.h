@@ -177,7 +177,7 @@ public:
 
   void set_record(Record *record) { this->record_ = record; }
 
-  void set_schema(const Table *table, const std::vector<FieldMeta> *fields)
+  void set_schema(const Table *table, const std::vector<FieldMeta> *fields, string table_alias)
   {
     table_ = table;
     // fix:join当中会多次调用右表的open,open当中会调用set_scheme，从而导致tuple当中会存储
@@ -185,7 +185,7 @@ public:
     this->speces_.clear();
     this->speces_.reserve(fields->size());
     for (const FieldMeta &field : *fields) {
-      speces_.push_back(new FieldExpr(table, &field));
+      speces_.push_back(new FieldExpr(table, &field, table_alias));
     }
   }
 
@@ -226,15 +226,14 @@ public:
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
     const char *table_name = spec.table_name();
-    const char *field_name = spec.field_name();
+    // const char *field_name = spec.field_name();
     if (0 != strcmp(table_name, table_->name())) {
       return RC::NOTFOUND;
     }
 
     for (size_t i = 0; i < speces_.size(); ++i) {
       const FieldExpr *field_expr = speces_[i];
-      const Field     &field      = field_expr->field();
-      if (0 == strcmp(field_name, field.field_name())) {
+      if (0 == strcmp(spec.alias(), field_expr->field_alias().c_str())) {           // 这里的field_alias 和 field_name 不是同一个东西
         return cell_at(i, cell);
       }
     }

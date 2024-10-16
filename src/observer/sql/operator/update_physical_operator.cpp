@@ -37,7 +37,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   trx_ = trx;
 
   while (OB_SUCC(rc = child->next())) {
-    
+
     // values_ 为空说明，stmt 阶段出现错误，比如要更新的值类型不匹配等
     if (values_.empty()) {
       return RC::ERROR;
@@ -49,10 +49,10 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       return rc;
     }
 
-    RowTuple *row_tuple       = static_cast<RowTuple *>(tuple);
-    Record   &record          = row_tuple->record();
+    RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+    Record   &record    = row_tuple->record();
     // Record   new_record(record);                ///疑似存在浅拷贝问题，即new_record和record实际指向同一区域
-    char     *new_record_data = (char *)malloc(record.len() * sizeof(char));
+    char *new_record_data = (char *)malloc(record.len() * sizeof(char));
     memcpy(new_record_data, record.data(), record.len());
 
     for (auto &it : values_) {
@@ -62,10 +62,10 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       }
       bool value_is_null = it.second.is_null();
       memcpy(new_record_data + it.first->offset(), it.second.data(), copy_len);
-      memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1); // 修改null标记位
+      memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1);  // 修改null标记位
     }
     // TODO: 需要做unique处理, 否则影响唯一性约束
-    // 
+    //
     rc = trx_->update_record(table_, record, new_record_data, record.len());
 
     if (rc != RC::SUCCESS) {
@@ -74,8 +74,6 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     }
   }
 
-  child->close();
-
   table_->data_buffer_pool()->flush_all_pages();
 
   return RC::SUCCESS;
@@ -83,4 +81,8 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
 RC UpdatePhysicalOperator::next() { return RC::RECORD_EOF; }
 
-RC UpdatePhysicalOperator::close() { return RC::SUCCESS; }
+RC UpdatePhysicalOperator::close()
+{
+  children_[0]->close();
+  return RC::SUCCESS;
+}
