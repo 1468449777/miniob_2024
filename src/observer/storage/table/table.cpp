@@ -139,6 +139,10 @@ RC Table::create(Db *db, int32_t table_id, View *view)
 
 RC Table::drop()
 {
+  if (is_view()) {
+    std::cout << "view drop not supported" << std::endl;
+    return RC::ERROR;
+  }
   RC rc = RC::SUCCESS;
   // 删除索引文件
   for (auto &idx : indexes_) {
@@ -158,6 +162,10 @@ RC Table::drop()
 
 RC Table::open(Db *db, const char *meta_file, const char *base_dir)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   // 加载元数据文件
   fstream fs;
   string  meta_file_path = string(base_dir) + common::FILE_PATH_SPLIT_STR + meta_file;
@@ -221,6 +229,10 @@ RC Table::open(Db *db, const char *meta_file, const char *base_dir)
 
 RC Table::insert_record(Record &record)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   RC rc = RC::SUCCESS;
   rc    = record_handler_->insert_record(record.data(), table_meta_.record_size(), &record.rid());
   if (rc != RC::SUCCESS) {
@@ -246,11 +258,19 @@ RC Table::insert_record(Record &record)
 
 RC Table::visit_record(const RID &rid, function<bool(Record &)> visitor)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   return record_handler_->visit_record(rid, visitor);
 }
 
 RC Table::get_record(const RID &rid, Record &record)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   RC rc = record_handler_->get_record(rid, record);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to visit record. rid=%s, table=%s, rc=%s", rid.to_string().c_str(), name(), strrc(rc));
@@ -262,6 +282,10 @@ RC Table::get_record(const RID &rid, Record &record)
 
 RC Table::recover_insert_record(Record &record)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   RC rc = RC::SUCCESS;
   rc    = record_handler_->recover_insert_record(record.data(), table_meta_.record_size(), record.rid());
   if (rc != RC::SUCCESS) {
@@ -353,6 +377,10 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
 
 RC Table::init_record_handler(const char *base_dir)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   string data_file = table_data_file(base_dir, table_meta_.name());
 
   BufferPoolManager &bpm = db_->buffer_pool_manager();
@@ -379,6 +407,10 @@ RC Table::init_record_handler(const char *base_dir)
 
 RC Table::get_record_scanner(RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   RC rc = scanner.open_scan(this, *data_buffer_pool_, trx, db_->log_handler(), mode, nullptr);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("failed to open scanner. rc=%s", strrc(rc));
@@ -397,6 +429,10 @@ RC Table::get_chunk_scanner(ChunkFileScanner &scanner, Trx *trx, ReadWriteMode m
 
 RC Table::create_index(Trx *trx, vector<const FieldMeta *> field_meta, const char *index_name, int unique)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   if (common::is_blank(index_name) || nullptr == index_name) {
     LOG_INFO("Invalid input arguments, table name is %s, index_name is blank or attribute_name is blank", name());
     return RC::INVALID_ARGUMENT;
@@ -506,6 +542,10 @@ RC Table::create_index(Trx *trx, vector<const FieldMeta *> field_meta, const cha
 
 RC Table::delete_record(const RID &rid)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   RC     rc = RC::SUCCESS;
   Record record;
   rc = get_record(rid, record);
@@ -518,6 +558,10 @@ RC Table::delete_record(const RID &rid)
 
 RC Table::delete_record(const Record &record)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
     rc = index->delete_entry(record.data(), &record.rid());
@@ -532,7 +576,8 @@ RC Table::delete_record(const Record &record)
 RC Table::update_record(Record &record, char *new_record_data, int new_record_len)
 {
   if (is_view()) {
-    return view_->update_record(record, new_record_data, new_record_len);
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
   }
 
   RC rc = RC::SUCCESS;
@@ -555,6 +600,10 @@ RC Table::update_record(Record &record, char *new_record_data, int new_record_le
 
 RC Table::update_entry_of_indexes(const char *record, const char *new_record, const RID &rid)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   RC  rc          = RC::SUCCESS;
   int record_size = table_meta_.record_size();
   for (Index *index : indexes_) {
@@ -575,6 +624,10 @@ RC Table::update_entry_of_indexes(const char *record, const char *new_record, co
 
 RC Table::insert_entry_of_indexes(Record &record, const RID &rid)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
     int field_indexes[20];
@@ -591,6 +644,10 @@ RC Table::insert_entry_of_indexes(Record &record, const RID &rid)
 
 RC Table::delete_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists)
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return RC::ERROR;
+  }
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
     rc = index->delete_entry(record, &rid);
@@ -605,6 +662,10 @@ RC Table::delete_entry_of_indexes(const char *record, const RID &rid, bool error
 
 Index *Table::find_index(const char *index_name) const
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return nullptr;
+  }
   for (Index *index : indexes_) {
     if (0 == strcmp(index->index_meta().name(), index_name)) {
       return index;
@@ -614,6 +675,10 @@ Index *Table::find_index(const char *index_name) const
 }
 Index *Table::find_index_by_field(const char *field_name) const
 {
+  if (is_view()) {
+    std::cout << "can not be called by view" << std::endl;
+    return nullptr;
+  }
   const TableMeta &table_meta = this->table_meta();
   const IndexMeta *index_meta = table_meta.find_index_by_field(field_name);
   if (index_meta != nullptr) {
@@ -624,6 +689,10 @@ Index *Table::find_index_by_field(const char *field_name) const
 
 RC Table::sync()
 {
+  if (is_view()) {
+    std::cout << "view sync should do nothing" << std::endl;
+    return RC::SUCCESS;
+  }
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
     rc = index->sync();
