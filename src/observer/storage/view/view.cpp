@@ -13,39 +13,13 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <cstring>
-#include <limits.h>
 #include <memory>
 #include <string.h>
 #include <vector>
 
-#include "common/defs.h"
-#include "common/lang/string.h"
-#include "common/lang/span.h"
-#include "common/lang/algorithm.h"
-#include "common/log/log.h"
-#include "common/global_context.h"
-#include "common/rc.h"
-#include "common/value.h"
-#include "sql/expr/expression.h"
-#include "sql/expr/sub_select_expression.h"
-#include "sql/expr/tuple.h"
-#include "sql/operator/logical_operator.h"
-#include "sql/operator/physical_operator.h"
-#include "sql/optimizer/logical_plan_generator.h"
-#include "sql/optimizer/physical_plan_generator.h"
-#include "sql/parser/parse_defs.h"
-#include "sql/stmt/update_stmt.h"
 #include "storage/db/db.h"
-#include "storage/buffer/disk_buffer_pool.h"
-#include "storage/common/condition_filter.h"
-#include "storage/common/meta_util.h"
-#include "storage/index/bplus_tree_index.h"
-#include "storage/index/index.h"
-#include "storage/record/record_manager.h"
-#include "storage/table/table_meta.h"
-#include "storage/trx/vacuous_trx.h"
 #include "storage/view/view.h"
-#include "storage/trx/trx.h"
+
 
 View::~View() { LOG_INFO("view has been closed: %s", name()); }
 

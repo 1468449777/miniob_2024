@@ -12,13 +12,12 @@ See the Mulan PSL v2 for more details. */
 // Created by Meiyi & Wangyunlai on 2021/5/12.
 //
 
+#include "common/lang/span.h"
 #include "common/lang/string.h"
 #include "common/lang/algorithm.h"
 #include "common/log/log.h"
-#include "common/global_context.h"
 #include "common/type/attr_type.h"
 #include "storage/view/view_meta.h"
-#include "storage/trx/trx.h"
 #include "json/json.h"
 
 static const Json::StaticString FIELD_VIEW_ID("view_id");
@@ -86,13 +85,7 @@ RC ViewMeta::init(int32_t view_id, const char *name, span<const AttrInfoSqlNode>
   return RC::SUCCESS;
 }
 
-
-
 const char *ViewMeta::name() const { return name_.c_str(); }
-
-const FieldMeta *ViewMeta::trx_field() const { return &fields_[0]; }
-
-span<const FieldMeta> ViewMeta::trx_fields() const { return span<const FieldMeta>(fields_.data(), sys_field_num()); }
 
 const FieldMeta *ViewMeta::field(int index) const { return &fields_[index]; }
 const FieldMeta *ViewMeta::field(const char *name) const
@@ -133,8 +126,4 @@ const FieldMeta *ViewMeta::find_field_by_offset(int offset) const
 }
 int ViewMeta::field_num() const { return fields_.size(); }
 
-int ViewMeta::sys_field_num() const { return static_cast<int>(trx_fields_.size()); }
-
-
 int ViewMeta::record_size() const { return record_size_; }
-
