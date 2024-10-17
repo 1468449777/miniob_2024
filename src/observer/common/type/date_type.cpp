@@ -114,13 +114,25 @@ RC DateType::to_string(const Value &val, string &result) const
             ss << day ;
             switch (day % 10) {
               case 1:{
-                ss << "st";
+                if (day != 11) {
+                  ss << "st";
+                } else {
+                  ss << "th";
+                }
               } break;
               case 2: {
-                ss << "nd";
+                if( day != 12) {
+                  ss << "nd";
+                } else {
+                  ss << "th";
+                }
               } break;
               case 3:{
-                ss << "rd";
+                if (day != 13) {
+                  ss << "rd";
+                } else {
+                  ss << "th";
+                }
               } break;
               default:
                 ss << "th";
