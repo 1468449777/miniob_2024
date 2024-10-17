@@ -33,21 +33,23 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   // 处理View
-  std::vector<Expression *> origin_exprs;
-  const SubSelectExpr      *sub_select = table_->view()->sub_select();
-  if (OB_FAIL(sub_select->get_field_exprs(origin_exprs))) {
-    return RC::ERROR;
-  }
+  if (table_->is_view()) {
+    std::vector<Expression *> origin_exprs;
+    const SubSelectExpr      *sub_select = table_->view()->sub_select();
+    if (OB_FAIL(sub_select->get_field_exprs(origin_exprs))) {
+      return RC::ERROR;
+    }
 
-  if (!table_->view()->wirte_able()) {
-    return RC::ERROR;
-  }
+    if (!table_->view()->wirte_able()) {
+      return RC::ERROR;
+    }
 
-  // 替换更新视图的属性列为物理表的属性列,默认即使是View，一次也最多更新一个表，若同时更新多表的列则报错
-  for (auto &it : values_) {
-    auto expr = origin_exprs[it.first->field_id()];
-    it.first  = static_cast<FieldExpr *>(expr)->field().meta();
-    table_    = const_cast<Table *>(static_cast<FieldExpr *>(expr)->field().table());
+    // 替换更新视图的属性列为物理表的属性列,默认即使是View，一次也最多更新一个表，若同时更新多表的列则报错
+    for (auto &it : values_) {
+      auto expr = origin_exprs[it.first->field_id()];
+      it.first  = static_cast<FieldExpr *>(expr)->field().meta();
+      table_    = const_cast<Table *>(static_cast<FieldExpr *>(expr)->field().table());
+    }
   }
 
   std::unique_ptr<PhysicalOperator> &child = children_[0];

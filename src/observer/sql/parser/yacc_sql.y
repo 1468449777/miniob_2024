@@ -566,8 +566,24 @@ create_view_stmt:    /*create view 语句的语法解析树*/
       Expression * expr = new UnboundSubSelectExpr(sqlnode);
       create_view.sub_select=std::unique_ptr<Expression>(expr);      
     }
+    |    CREATE VIEW ID LBRACE idlist RBRACE AS select_stmt 
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_VIEW);
+      CreateViewSqlNode &create_view = $$->create_view;
+      create_view.relation_name = $3;
+      free($3);
+
+      SelectSqlNode *sqlnode = new SelectSqlNode;
+      (*sqlnode) = std::move($8->selection);
+      delete $8;
+      Expression * expr = new UnboundSubSelectExpr(sqlnode);
+      create_view.sub_select=std::unique_ptr<Expression>(expr);      
+    }
 
     ;
+idlist:
+  ID | 
+  ID COMMA  idlist;
 
 number:
     NUMBER {$$ = $1;}
