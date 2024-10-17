@@ -474,11 +474,8 @@ public:
   RC find_cell(const TupleCellSpec &spec, Value &value) const override
   {
     RC rc = RC::SUCCESS;
-    if (left_ == nullptr) {  // 当子查询调用 try_to_get-Value（）时，传入的父tuple为nullptr，
-      rc = RC::NOTFOUND;
-    } else {
-      rc = left_->find_cell(spec, value);
-    }
+
+    rc = left_->find_cell(spec, value);
 
     if (rc == RC::SUCCESS || rc != RC::NOTFOUND) {
       return rc;

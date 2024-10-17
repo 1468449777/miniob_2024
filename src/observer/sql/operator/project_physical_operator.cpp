@@ -88,7 +88,7 @@ RC ProjectPhysicalOperator::tuple_meta(std::vector<AttrInfoSqlNode> &attr_infos,
       FieldExpr       *field_expr = static_cast<FieldExpr *>(expression.get());
       const FieldMeta *meta       = field_expr->field().meta();
       AttrInfoSqlNode  attr_info{meta->type(), meta->name(), static_cast<size_t>(meta->len()), meta->can_be_null()};
-      if (strcmp(meta->name(), expression->name()) != 0) {
+      if (strcmp(field_expr->field_alias().c_str(), expression->name()) != 0) {
         attr_info.name = expression->name();
       }
       attr_infos.push_back(attr_info);
