@@ -23,6 +23,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/types.h"
 #include "storage/field/field_meta.h"
 #include "storage/index/index_meta.h"
+#include "storage/view/view_meta.h"
 
 /**
  * @brief 表元数据
@@ -41,6 +42,8 @@ public:
   RC init(int32_t table_id, const char *name, const std::vector<FieldMeta> *trx_fields,
       std::span<const AttrInfoSqlNode> attributes, StorageFormat storage_format);
 
+  RC init(ViewMeta * view_meta);
+
   RC add_index(const IndexMeta &index);
 
 public:
@@ -49,7 +52,7 @@ public:
   const FieldMeta    *trx_field() const;
   const FieldMeta    *field(int index) const;
   const FieldMeta    *field(const char *name) const;
-  int                find_field_index_by_name(const char *name) const;
+  int                 find_field_index_by_name(const char *name) const;
   const FieldMeta    *find_field_by_offset(int offset) const;
   auto                field_metas() const -> const std::vector<FieldMeta>                *{ return &fields_; }
   auto                trx_fields() const -> std::span<const FieldMeta>;

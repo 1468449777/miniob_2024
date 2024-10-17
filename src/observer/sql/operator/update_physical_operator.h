@@ -41,7 +41,7 @@ public:
   Tuple *current_tuple() override { return nullptr; }
 
 private:
-  Table                                      *table_ = nullptr;
+  Table                                *table_ = nullptr;
   Trx                                        *trx_   = nullptr;
   std::vector<Record>                         records_;
   std::vector<pair<const FieldMeta *, Value>> values_;

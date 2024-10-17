@@ -18,11 +18,13 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include "common/value.h"
 #include "sql/expr/aggregator.h"
+#include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
 #include "sql/expr/arithmetic_operator.hpp"
 #include "sql/operator/father_tuple_physical_operator.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/physical_operator.h"
+#include "sql/operator/project_physical_operator.h"
 #include "sql/optimizer/logical_plan_generator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/parser/parse_defs.h"
@@ -102,4 +104,26 @@ RC SubSelectExpr::try_get_value(Value &value) const
   const std::vector<FieldMeta> fields;
   empty_tuple.set_schema(subselect_->tables()[0].second, &fields, "empty_table");
   return get_value(empty_tuple, value);
+}
+
+RC SubSelectExpr::field_meta(std::vector<AttrInfoSqlNode> &attr_infos, Db *db)
+{
+  if (physical_operator()->type() != PhysicalOperatorType::PROJECT) {
+    return RC::ERROR;
+  }
+  ProjectPhysicalOperator *oper = static_cast<ProjectPhysicalOperator *>(physical_operator());
+  oper->tuple_meta(attr_infos, db);
+  return RC::SUCCESS;
+}
+
+RC SubSelectExpr::get_field_exprs(std::vector<Expression *> &field_exprs) const
+{
+  if (physical_operator()->type() != PhysicalOperatorType::PROJECT) {
+    return RC::ERROR;
+  }
+  ProjectPhysicalOperator *oper = static_cast<ProjectPhysicalOperator *>(physical_operator());
+  for (auto &expr : oper->expressions()) {
+    field_exprs.push_back(expr.get());
+  }
+  return RC::SUCCESS;
 }

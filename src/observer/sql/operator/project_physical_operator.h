@@ -41,14 +41,14 @@ public:
   Tuple *current_tuple() override;
 
   RC tuple_schema(TupleSchema &schema) const override;
-  
-  RC tuple_meta(std::vector<AttrInfoSqlNode> &attr_infos,Db *db);
-  Tuple *get_tuple_directly() override {
-    return &tuple_;
-  }
+
+  RC     tuple_meta(std::vector<AttrInfoSqlNode> &attr_infos, Db *db);
+  Tuple *get_tuple_directly() override { return &tuple_; }
+
+  std::vector<std::unique_ptr<Expression>> &expressions() { return expressions_; }
 
 private:
   std::vector<std::unique_ptr<Expression>>     expressions_;
   ExpressionTuple<std::unique_ptr<Expression>> tuple_;
-  bool iterated_ = false;
+  bool                                         iterated_ = false;
 };

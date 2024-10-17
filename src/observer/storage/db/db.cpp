@@ -14,7 +14,9 @@ See the Mulan PSL v2 for more details. */
 
 #include "storage/db/db.h"
 
+#include <cstdint>
 #include <fcntl.h>
+#include <memory>
 #include <sys/stat.h>
 #include <vector>
 #include <filesystem>
@@ -23,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/os/path.h"
 #include "common/global_context.h"
+#include "sql/expr/expression.h"
 #include "storage/common/meta_util.h"
 #include "storage/table/table.h"
 #include "storage/table/table_meta.h"
@@ -174,7 +177,6 @@ RC Db::drop_table(const char *table_name)
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to create table %s.", table_name);
     return rc;
-
   }
   opened_tables_.erase(opened_tables_.find(table_name));
 
@@ -421,3 +423,71 @@ RC Db::init_dblwr_buffer()
 LogHandler        &Db::log_handler() { return *log_handler_; }
 BufferPoolManager &Db::buffer_pool_manager() { return *buffer_pool_manager_; }
 TrxKit            &Db::trx_kit() { return *trx_kit_; }
+
+RC Db::create_view(const char *view_name, unique_ptr<Expression> sub_select)
+{
+  RC rc = RC::SUCCESS;
+  // check view_name
+  if (opened_views_.count(view_name) != 0 || opened_tables_.count(view_name) != 0) {
+    LOG_WARN("%s has been opened before.", view_name);
+    return RC::SCHEMA_VIEW_EXIST;
+  }
+
+  // 文件路径可以移到view模块
+  // string  view_file_path = view_meta_file(path_.c_str(), view_name);
+  View   *view     = new View();
+  Table  *table    = new Table();
+  int32_t view_id  = next_view_id_++;
+  int32_t table_id = next_table_id_++;
+  rc               = view->create(this, view_id, view_name, std::move(sub_select));
+  rc               = table->create(this, table_id, view);  // 作用是将View 封装为一个虚拟表
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to create view %s.", view_name);
+    delete view;
+    return rc;
+  }
+
+  opened_views_[view_name]  = view;
+  opened_tables_[view_name] = table;
+  LOG_INFO("Create view success. view name=%s, view_id:%d", view_name, view_id);
+  return RC::SUCCESS;
+}
+
+RC Db::drop_view(const char *view_name)
+{
+  RC rc = RC::SUCCESS;
+  // check view_name
+  if (opened_views_.count(view_name) == 0) {
+    return RC::ERROR;
+  }
+
+  View *view = find_view(view_name);
+  rc         = view->drop();
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to create view %s.", view_name);
+    return rc;
+  }
+  opened_views_.erase(opened_views_.find(view_name));
+
+  LOG_INFO("drop view success. view name=%s, view_id:%d", view_name);
+  return RC::SUCCESS;
+}
+
+View *Db::find_view(const char *view_name) const
+{
+  unordered_map<string, View *>::const_iterator iter = opened_views_.find(view_name);
+  if (iter != opened_views_.end()) {
+    return iter->second;
+  }
+  return nullptr;
+}
+
+View *Db::find_view(int32_t view_id) const
+{
+  for (auto pair : opened_views_) {
+    if (pair.second->view_id() == view_id) {
+      return pair.second;
+    }
+  }
+  return nullptr;
+}

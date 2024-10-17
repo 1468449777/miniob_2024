@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "storage/field/field.h"
 #include "storage/record/record.h"
+#include <execution>
 
 SortPhysicalOperator::SortPhysicalOperator(
     std::vector<std::unique_ptr<Expression>> &&expressions, std::vector<OrderByType> order_by_type)
@@ -48,7 +49,7 @@ inline bool compare(const Tuple *x, const Tuple *y, std::vector<std::unique_ptr<
       return cmp_result > 0;  // 降序时，x > y 返回 true
     }
     // 如果这个字段相等，继续比较下一个字段
-    count++;
+    ++count;
   }
   return true;
 }
@@ -71,7 +72,7 @@ RC SortPhysicalOperator::open(Trx *trx)
     tuple_set_.push_back(child->current_tuple());
   }
 
-  std::sort(tuple_set_.begin(), tuple_set_.end(), [&](const Tuple *x, const Tuple *y) {
+  std::sort(std::execution::par, tuple_set_.begin(), tuple_set_.end(), [&](const Tuple *x, const Tuple *y) {
     return compare(x, y, expressions_, order_by_type_);
   });
 

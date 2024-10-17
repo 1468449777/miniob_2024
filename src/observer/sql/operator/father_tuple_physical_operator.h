@@ -27,7 +27,9 @@ class FatherTuplePhysicalOperator : public PhysicalOperator
 {
 public:
   FatherTuplePhysicalOperator();
-  virtual ~FatherTuplePhysicalOperator() = default;
+  virtual ~FatherTuplePhysicalOperator(){
+
+  };
 
   PhysicalOperatorType type() const override { return PhysicalOperatorType::FATHER_TUPLE; }
 
@@ -39,6 +41,7 @@ public:
   void set_tuple(Tuple *tuple) { father_tuple_ = tuple; }
 
 private:
-  Tuple *father_tuple_ = nullptr;
-  bool   first_called_{true};
+  EmptyTuple empty_tuple_;
+  Tuple     *father_tuple_ = nullptr;
+  bool       first_called_{true};
 };
