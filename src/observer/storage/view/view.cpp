@@ -77,6 +77,18 @@ RC View::create(Db *db, int32_t view_id, const char *name, std::unique_ptr<Expre
   }
   db_         = db;
   sub_select_ = move(sub_select);
+  wirte_able_ = true;
+
+  std::vector<Expression *> origin_exprs;
+  sub_select_expr->get_field_exprs(origin_exprs);
+
+  for (auto &expr : origin_exprs) {  // 只允许更新视图中的属性字段,检查是否可以更新
+    if (expr->type() != ExprType::FIELD) {
+      wirte_able_ = false;
+    }
+    FieldExpr *field_expr = static_cast<FieldExpr *>(expr);
+    origin_tables_.insert(field_expr->table_name());
+  }
 
   return rc;
 }

@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
+#include <cstring>
 
 using namespace std;
 
@@ -44,7 +45,7 @@ RC ProjectPhysicalOperator::open(Trx *trx)
 RC ProjectPhysicalOperator::next()
 {
   if (tuple_.pure_value_expression()) {
-    if (iterated_)  {
+    if (iterated_) {
       return RC::RECORD_EOF;
     }
     iterated_ = true;
@@ -86,7 +87,10 @@ RC ProjectPhysicalOperator::tuple_meta(std::vector<AttrInfoSqlNode> &attr_infos,
     if (expression->type() == ExprType::FIELD) {
       FieldExpr       *field_expr = static_cast<FieldExpr *>(expression.get());
       const FieldMeta *meta       = field_expr->field().meta();
-      AttrInfoSqlNode  attr_info{meta->type(), expression->name(), static_cast<size_t>(meta->len()), meta->can_be_null()};
+      AttrInfoSqlNode  attr_info{meta->type(), meta->name(), static_cast<size_t>(meta->len()), meta->can_be_null()};
+      if (strcmp(meta->name(), expression->name()) != 0) {
+        attr_info.name = expression->name();
+      }
       attr_infos.push_back(attr_info);
     } else {
       AttrInfoSqlNode attr_info{

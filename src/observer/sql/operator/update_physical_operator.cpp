@@ -65,10 +65,8 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         return RC::ERROR;
       }
 
-      for (auto &expr : origin_exprs) {  // 只允许更新视图中的属性字段,检查是否可以更新
-        if (expr->type() != ExprType::FIELD) {
-          return RC::ERROR;
-        }
+      if (!table_->view()->wirte_able()) {
+        return RC::ERROR;
       }
 
       // 替换更新视图的属性列为物理表的属性列,默认即使是View，一次也最多更新一个表，若同时更新多表的列则报错
@@ -86,7 +84,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         }
       }
 
-    } else { // 这里为普通的物理表更新
+    } else {  // 这里为普通的物理表更新
       row_tuple = static_cast<RowTuple *>(tuple);
     }
 

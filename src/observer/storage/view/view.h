@@ -14,10 +14,12 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "common/lang/unordered_set.h"
 #include "common/types.h"
 #include "common/lang/span.h"
 #include "common/lang/functional.h"
 #include "sql/operator/physical_operator.h"
+#include "storage/table/table.h"
 #include "storage/view/view_meta.h"
 #include "storage/table/table_meta.h"
 #include "sql/expr/expression.h"
@@ -97,6 +99,10 @@ public:
 
   const SubSelectExpr *sub_select() { return static_cast<SubSelectExpr *>(sub_select_.get()); }
 
+  unordered_set<string> &origin_tables() { return origin_tables_; }
+
+  bool wirte_able() { return wirte_able_; }
+
 private:
   RC set_value_to_record(char *record_data, const Value &value, const FieldMeta *field, const int record_len);
 
@@ -106,4 +112,6 @@ private:
   ViewMeta               view_meta_;
   unique_ptr<Expression> sub_select_;
   string                 origin_sql_;  // 用于重启时重新解析Subselect；
+  unordered_set<string>  origin_tables_;
+  bool                   wirte_able_;
 };
