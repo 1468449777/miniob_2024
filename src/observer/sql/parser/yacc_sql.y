@@ -116,7 +116,6 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
         SET
         ON
         LOAD
-        DATA
         INFILE
         EXPLAIN
         STORAGE
@@ -831,9 +830,6 @@ as_alias:
   |  AS ID{
     $$ = $2;
   }
-  | AS DATA{
-    $$ = strdup("data");   // 这个是为了处理 data字段二义性的问题
-  } 
   ;
 
 expression_list:
@@ -1167,7 +1163,7 @@ sub_select:
 
 
 load_data_stmt:
-    LOAD DATA INFILE SSS INTO TABLE ID 
+    LOAD ID INFILE SSS INTO TABLE ID 
     {
       char *tmp_file_name = common::substr($4, 1, strlen($4) - 2);
       

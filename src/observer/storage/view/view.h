@@ -26,22 +26,14 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/sub_select_expression.h"
 #include <memory>
 
-struct RID;
 class Record;
-class DiskBufferPool;
-class RecordFileHandler;
-class RecordFileScanner;
+
 class ChunkFileScanner;
-class ConditionFilter;
-class DefaultConditionFilter;
-class Index;
-class IndexScanner;
-class RecordDeleter;
-class Trx;
+
 class Db;
 
 /**
- * @brief 表
+ * @brief 表(虚拟表)
  *
  */
 class View
@@ -58,30 +50,8 @@ public:
    * @param attribute_count 字段个数
    * @param attributes 字段
    */
-  // RC create(Db *db, int32_t view_id, const char *path, const char *name, const char *base_dir,
-  //     span<const AttrInfoSqlNode> attributes, StorageFormat storage_format);
   RC create(Db *db, int32_t view_id, const char *name, std::unique_ptr<Expression> &&sub_select);
   RC drop();
-
-  // /**
-  //  * 打开一个表
-  //  * @param meta_file 保存表元数据的文件完整路径
-  //  * @param base_dir 表所在的文件夹，表记录数据文件、索引数据文件存放位置
-  //  * @现在不支持
-  //  */
-  // RC open(Db *db, const char *meta_file, const char *base_dir);
-
-  /**
-   * @brief 在当前的视图中插入一条记录
-   * @details 在表文件和索引中插入关联数据。这里只管在表中插入数据，不关心事务相关操作。
-   * @param record[in/out] 传入的数据包含具体的数据，插入成功会通过此字段返回RID
-   */
-  RC make_record(int value_num, const Value *values, Record &record);
-  RC insert_record(Record &record);
-  RC delete_record(const Record &record);
-  RC delete_record(const RID &rid);
-  RC update_record(Record &record, char *new_record_data, int new_record_len);
-  // RC get_record(const RID &rid, Record &record);
 
 public:
   int32_t     view_id() const { return view_meta_.view_id(); }
@@ -93,8 +63,6 @@ public:
 
   TableMeta table_meta();
 
-  RC sync();
-
   PhysicalOperator *oper();
 
   const SubSelectExpr *sub_select() { return static_cast<SubSelectExpr *>(sub_select_.get()); }
@@ -104,11 +72,7 @@ public:
   bool wirte_able() { return wirte_able_; }
 
 private:
-  RC set_value_to_record(char *record_data, const Value &value, const FieldMeta *field, const int record_len);
-
-private:
   Db                    *db_ = nullptr;
-  string                 base_dir_;
   ViewMeta               view_meta_;
   unique_ptr<Expression> sub_select_;
   string                 origin_sql_;  // 用于重启时重新解析Subselect；
