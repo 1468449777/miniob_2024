@@ -830,6 +830,9 @@ as_alias:
   }  
   |  AS ID{
     $$ = $2;
+  }
+  | AS DATA{
+    $$ = strdup("data");   // 这个是为了处理 data字段二义性的问题
   } 
   ;
 

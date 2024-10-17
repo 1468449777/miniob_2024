@@ -85,9 +85,10 @@ RC View::create(Db *db, int32_t view_id, const char *name, std::unique_ptr<Expre
   for (auto &expr : origin_exprs) {  // 只允许更新视图中的属性字段,检查是否可以更新
     if (expr->type() != ExprType::FIELD) {
       wirte_able_ = false;
+    } else {
+      FieldExpr *field_expr = static_cast<FieldExpr *>(expr);
+      origin_tables_.insert(field_expr->table_name());
     }
-    FieldExpr *field_expr = static_cast<FieldExpr *>(expr);
-    origin_tables_.insert(field_expr->table_name());
   }
 
   return rc;
