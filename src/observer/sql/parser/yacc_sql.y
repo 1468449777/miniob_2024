@@ -594,13 +594,25 @@ type:
     | DATE_T { $$ = static_cast<int>(AttrType::DATES); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES   expression_list  
+      INSERT INTO ID VALUES   expression_list  
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
       if ($5 != nullptr) {
         $$->insertion.values.swap(*$5);
         delete $5;
+      }
+      free($3);
+    }
+    | 
+    // 这个idlist 是为了支持insert into View 的语法，应该检测idlist的数量和expr_list的 数量是否相等，但不做也不影响
+    INSERT INTO ID LBRACE idlist RBRACE VALUES   expression_list   
+    {
+      $$ = new ParsedSqlNode(SCF_INSERT);
+      $$->insertion.relation_name = $3;
+      if ($8 != nullptr) {
+        $$->insertion.values.swap(*$8);
+        delete $8;
       }
       free($3);
     }
