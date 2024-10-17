@@ -144,7 +144,8 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
   vector<unique_ptr<Expression>> &predicates = table_get_oper.predicates();
   // 看看是否有可以用于索引查找的表达式
   Table *table = table_get_oper.table();
-
+  
+  // 如果是View，直接生成View_scan_oper，不考虑索引，因为虚拟表没有索引？
   if (table->is_view()) {
     auto table_scan_oper =
         new ViewScanPhysicalOperator(table, table_get_oper.read_write_mode(), table_get_oper.table_alias());

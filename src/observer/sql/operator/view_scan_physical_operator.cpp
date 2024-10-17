@@ -59,13 +59,14 @@ RC ViewScanPhysicalOperator::next()
       copied_tuples_.push_back(copied_tuple);
 
       // owner为true，copy了一份
-      // copied_record->copy_data(current_record_.data(), current_record_.len()); // 这里本身就是新record
+      // copied_record->copy_data(current_record_.data(), current_record_.len()); //
+      // 相比table_scan,这不不复制，这里本身就是新record
 
       copied_tuple->set_record(copied_record);
       copied_tuple->set_schema(table_, table_->table_meta().field_metas(), table_alias_);
 
       current_tuple_.set_left(copied_tuple);
-      current_tuple_.set_right(tuple);  // 保留这个tuple 是为了在update View时，找到最开始的record,再没有其他作用
+      current_tuple_.set_right(tuple);  // 保留这个tuple 是为了在update View时，找到最original_rowtuple,再没有其他作用
       sql_debug("get a tuple: %s", tuple_.to_string().c_str());
       break;
     } else {
@@ -79,7 +80,6 @@ RC ViewScanPhysicalOperator::close() { return child_oper_->close(); }
 
 Tuple *ViewScanPhysicalOperator::current_tuple()
 {
-
   JoinedTuple *tuple = new JoinedTuple(current_tuple_);
   return tuple;
 }
