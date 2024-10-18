@@ -90,6 +90,11 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1);  // 修改null标记位
       }
     }
+
+    if (OB_FAIL(rc)) {
+      return rc;
+    }
+
     // TODO: 需要做unique处理, 否则影响唯一性约束
     //
     rc = trx_->update_record(table_, record, new_record_data, record.len());
