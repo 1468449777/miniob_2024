@@ -323,6 +323,19 @@ void Value::set_vecs(const char *s)
   std::memcpy(value_.vectors, vec_tmp.data(), vec_tmp.size() * sizeof(int32_t));
 }
 
+void Value::set_vecs(vector<int> &vec_tmp)
+{
+  reset();
+  attr_type_ = AttrType::VECTORS;
+  string            temp;
+  own_data_ = true;
+
+  length_        = vec_tmp.size() * 4;
+  value_.vectors = new char[vec_tmp.size() * sizeof(int32_t)];
+  // 使用 memcpy 将 vec 的数据拷贝到 int* 数组中
+  std::memcpy(value_.vectors, vec_tmp.data(), vec_tmp.size() * sizeof(int32_t));
+}
+
 void Value::set_null()
 {
   reset();

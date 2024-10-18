@@ -58,7 +58,7 @@ public:
   explicit Value(float val);
   explicit Value(bool val);
   explicit Value(const char *s, int len = 0);
-  explicit Value( std::vector<std::unique_ptr<Expression>> &value_exprs);
+  explicit Value(std::vector<std::unique_ptr<Expression>> &value_exprs);
   Value(const Value &other);
   Value(Value &&other);
 
@@ -97,14 +97,14 @@ public:
     return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
   }
 
-  void   set_type(AttrType type) { this->attr_type_ = type; }
-  void   set_data(char *data, int length);
-  void   set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
-  void   set_value(const Value &value);
-  void   set_boolean(bool val);
-  void   set_null();
-  void   set_valuelist();
-  void   set_date_format(const string &format) { date_formmat_s_ = format; }
+  void set_type(AttrType type) { this->attr_type_ = type; }
+  void set_data(char *data, int length);
+  void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
+  void set_value(const Value &value);
+  void set_boolean(bool val);
+  void set_null();
+  void set_valuelist();
+  void set_date_format(const string &format) { date_formmat_s_ = format; }
   void set_text_file_handler(TextFileHandler *text_file_handler);
 
   string to_string() const;
@@ -121,26 +121,30 @@ public:
   bool is_null() const { return AttrType::NULLS == attr_type_; }
 
   const std::string &get_date_format() const { return date_formmat_s_; }
+
 public:
   /**
    * 获取对应的值
    * 如果当前的类型与期望获取的类型不符，就会执行转换操作
    */
-  int    get_int() const;
-  float  get_float() const;
-  string get_string() const;
-  bool   get_boolean() const;
-  std::vector<Value>* get_valuelist();
-  std::vector<Value>* get_valuelist() const;
-  std::vector<int>* get_vector();
-  TextFileHandler *get_text_file_handler();
-  TextFileHandler *get_text_file_handler() const;
+  int                 get_int() const;
+  float               get_float() const;
+  string              get_string() const;
+  bool                get_boolean() const;
+  std::vector<Value> *get_valuelist();
+  std::vector<Value> *get_valuelist() const;
+  std::vector<int>   *get_vector();
+  TextFileHandler    *get_text_file_handler();
+  TextFileHandler    *get_text_file_handler() const;
+  int                *get_vectors() const { return (int *)value_.vectors; }
+
 private:
   void set_int(int val);
   void set_float(float val);
   void set_string(const char *s, int len = 0);
   void set_date(const char *s);
   void set_vecs(const char *s);
+  void set_vecs(vector<int> &vecs);
   void set_date(int val);
   void set_string_from_other(const Value &other);
 
@@ -159,7 +163,7 @@ private:
   } value_ = {.int_value_ = 0};
 
   TextFileHandler *text_file_handler_ = nullptr;
-  std::string date_formmat_s_;
+  std::string      date_formmat_s_;
   /// 是否申请并占有内存, 目前对于 CHARS 类型 own_data_ 为true, 其余类型 own_data_ 为false
   bool own_data_ = false;
 };

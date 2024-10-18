@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/values_type.h"
 #include "common/value.h"
 #include "common/type/vector_type.h"
+#include <vector>
 
 int VectorType::compare(const Value &left, const Value &right) const
 {
@@ -20,14 +21,30 @@ int VectorType::compare(const Value &left, const Value &right) const
   }
 
   for (int i = 0; i < left.length() / 4; i++) {
-    if (left.value_.vectors[i] != right.value_.vectors[i]) {
+    if (left.get_vectors()[i] != right.get_vectors()[i]) {
       return INT32_MAX;
     }
   }
   return 0;
 }
-RC VectorType::add(const Value &left, const Value &right, Value &result) const { return RC::UNIMPLEMENTED; }
-RC VectorType::subtract(const Value &left, const Value &right, Value &result) const { return RC::UNIMPLEMENTED; }
+RC VectorType::add(const Value &left, const Value &right, Value &result) const
+{
+  vector<int> tmp;
+  for (int i = 0; i < left.length() / 4; i++) {
+    tmp.push_back(left.get_vectors()[i] + right.get_vectors()[i]);
+  }
+  result.set_vecs(tmp);
+  return RC::SUCCESS;
+}
+RC VectorType::subtract(const Value &left, const Value &right, Value &result) const
+{
+  vector<int> tmp;
+  for (int i = 0; i < left.length() / 4; i++) {
+    tmp.push_back(left.get_vectors()[i] - right.get_vectors()[i]);
+  }
+  result.set_vecs(tmp);
+  return RC::SUCCESS;
+}
 RC VectorType::multiply(const Value &left, const Value &right, Value &result) const { return RC::UNIMPLEMENTED; }
 RC VectorType::to_string(const Value &val, string &result) const
 {
