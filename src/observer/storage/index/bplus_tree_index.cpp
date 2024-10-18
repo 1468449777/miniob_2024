@@ -96,9 +96,6 @@ RC BplusTreeIndex::make_entry_key(const char *record, char *&entry_key) {
   for(int i = 0; i < field_num_; i++){
     memcpy(entry_key + offset, record + field_metas_[i].offset() , field_metas_[i].len());
     offset += field_metas_[i].len();
-    if(field_metas_[i].type() == AttrType::FLOATS && field_metas_[i].field_id()==2){
-      return RC::ERROR; // 不知道用例是什么
-    }
   }
   return RC::SUCCESS;
 }
