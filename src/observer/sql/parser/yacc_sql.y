@@ -482,7 +482,12 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1; 
-      $$->length = $4 * 4;            
+      if((AttrType)$2 == AttrType::VECTORS){
+          $$->length = $4 * 4; 
+      }else{
+          $$->length = $4;
+      }
+                 
       free($1);
       $$->can_be_null = true;
     }
@@ -491,7 +496,12 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = 4;
+      if((AttrType)$2 == AttrType::CHARS){
+       $$->length = 1;           // 其他几个情况也应该加这个逻辑，但我懒得补全
+      }else{
+        $$->length = 4;                    
+      }
+      
       free($1);
       $$->can_be_null = true;
     }
@@ -501,7 +511,11 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = $4;
+      if((AttrType)$2 == AttrType::VECTORS){
+          $$->length = $4 * 4; 
+      }else{
+          $$->length = $4;
+      }
       free($1);
       $$->can_be_null = true;
     }
