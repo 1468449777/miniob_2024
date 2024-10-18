@@ -421,8 +421,8 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
 
   size_t       copy_len = field->len();
   const size_t data_len = value.length();
-  if (field->type() == AttrType::CHARS) {
-    if(field->len()<value.length()){
+  if (value.attr_type() == AttrType::CHARS) {
+    if(field->len()<value.length() ){
       return RC::ERROR;
     }
     if (copy_len > data_len) {
