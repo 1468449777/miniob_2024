@@ -142,6 +142,10 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
       }
     }
 
+    if(updatingfieldMeta->type() == AttrType::VECTORS && updatingfieldMeta->len() != result_value.length()){
+      return RC::ERROR;
+    }
+
     values.push_back(std::make_pair(updatingfieldMeta, result_value));
   }
 

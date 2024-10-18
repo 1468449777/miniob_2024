@@ -132,14 +132,13 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   }
 
   // 若含有数据类型为text，则新建一个文件，用于存储text相关数据
-  bool text_flag = (std::find_if(attributes.begin(), attributes.end(),
-                                [&](const AttrInfoSqlNode &attr) {
-                                  return attr.type == AttrType::TEXTS;
-                                }) != attributes.end());
-  
+  bool text_flag = (std::find_if(attributes.begin(), attributes.end(), [&](const AttrInfoSqlNode &attr) {
+    return attr.type == AttrType::TEXTS;
+  }) != attributes.end());
+
   if (text_flag) {
     std::string text_file = table_text_file(base_dir, name);
-    rc = db->buffer_pool_manager().create_file(text_file.c_str());
+    rc                    = db->buffer_pool_manager().create_file(text_file.c_str());
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to create text file.");
       return rc;
@@ -226,7 +225,7 @@ RC Table::open(Db *db, const char *meta_file, const char *base_dir)
     LOG_ERROR("Failed to open table %s due to init text handler.", base_dir);
     return rc;
   }
-  
+
   const int index_num = table_meta_.index_num();
   for (int i = 0; i < index_num; i++) {
     const IndexMeta *index_meta = table_meta_.index(i);
@@ -369,8 +368,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
     if (field->type() != value.attr_type()) {
       if (value.is_null() && field->can_be_null()) {
         rc = set_value_to_record(record_data, value, field, record_size);
-      } 
-      else if (field->type() == AttrType::TEXTS) {
+      } else if (field->type() == AttrType::TEXTS) {
         if (value.attr_type() != AttrType::CHARS) {
           rc = RC::ERROR;
           break;
@@ -388,8 +386,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
         }
         Value real_value(page_num);
         rc = set_value_to_record(record_data, real_value, field, record_size);
-      }
-      else {
+      } else {
         Value real_value;
         rc = Value::cast_to(value, field->type(), real_value);
         if (OB_FAIL(rc)) {
@@ -400,6 +397,11 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
         rc = set_value_to_record(record_data, real_value, field, record_size);
       }
 
+    } else if (field->type() == AttrType::VECTORS) {
+      if (field->len() != value.length()) {
+        return RC::ERROR;
+      }
+      rc = set_value_to_record(record_data, value, field, record_size);
     } else {
       rc = set_value_to_record(record_data, value, field, record_size);
     }
@@ -460,15 +462,16 @@ RC Table::init_record_handler(const char *base_dir)
   return rc;
 }
 
-RC Table::init_text_handler(const char *base_dir) {
-  RC rc = RC::SUCCESS;
+RC Table::init_text_handler(const char *base_dir)
+{
+  RC     rc        = RC::SUCCESS;
   string text_file = table_text_file(base_dir, table_meta_.name());
   if (!std::filesystem::exists(std::filesystem::path(text_file))) {
     return rc;
   }
 
   auto &bpm = db_->buffer_pool_manager();
-  rc = bpm.open_file(db_->log_handler(), text_file.c_str(), text_buffer_pool_);
+  rc        = bpm.open_file(db_->log_handler(), text_file.c_str(), text_buffer_pool_);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to open text file.");
     return rc;
