@@ -122,6 +122,17 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
           // return RC::SCHEMA_FIELD_TYPE_MISMATCH;
         }
       }
+      else if (updatingfieldMeta->type() == AttrType::TEXTS) {
+        if (result_value.attr_type() == AttrType::CHARS) {
+          // do nothing
+        }
+        else {
+          rc = Value::cast_to(result_value, AttrType::CHARS, result_value);
+          if (OB_FAIL(rc)) {
+            return rc;
+          }
+        }
+      }
 
       // cast 操作目前未实现，后续根据需要进行补充，这里的update 的逻辑已经完善了
       else if (OB_FAIL(result_value.cast_to(result_value, updatingfieldMeta->type(), result_value))) {

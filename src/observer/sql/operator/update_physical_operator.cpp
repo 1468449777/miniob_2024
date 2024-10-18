@@ -56,13 +56,31 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     memcpy(new_record_data, record.data(), record.len());
 
     for (auto &it : values_) {
-      int copy_len = it.second.length();
-      if (it.second.attr_type() == AttrType::CHARS && copy_len < it.first->len()) {
-        ++copy_len;
+      if (it.first->type() == AttrType::TEXTS) {
+        int copy_len = it.first->len();
+        bool value_is_null = it.second.is_null();
+        if (value_is_null) {
+          int tmp_invalid_page = -1;
+          memcpy(new_record_data + it.first->offset(), &(tmp_invalid_page), copy_len);
+          
+        }
+        else {
+          PageNum origin_page_num = *(int*)(record.data() + it.first->offset());
+          PageNum new_page_num;
+          table_->text_file_handler()->update_text(origin_page_num, it.second.get_string(), new_page_num);
+          memcpy(new_record_data + it.first->offset(), &new_page_num, copy_len);
+        }
+        memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1);  // 修改null标记位
       }
-      bool value_is_null = it.second.is_null();
-      memcpy(new_record_data + it.first->offset(), it.second.data(), copy_len);
-      memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1);  // 修改null标记位
+      else {
+        int copy_len = it.second.length();
+        if (it.second.attr_type() == AttrType::CHARS && copy_len < it.first->len()) {
+          ++copy_len;
+        }
+        bool value_is_null = it.second.is_null();
+        memcpy(new_record_data + it.first->offset(), it.second.data(), copy_len);
+        memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1);  // 修改null标记位
+      }
     }
     // TODO: 需要做unique处理, 否则影响唯一性约束
     //

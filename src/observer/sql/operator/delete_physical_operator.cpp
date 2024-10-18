@@ -33,6 +33,9 @@ RC DeletePhysicalOperator::open(Trx *trx)
 
   trx_ = trx;
 
+  // collect text page
+  std::vector<PageNum> pages;
+  
   while (OB_SUCC(rc = child->next())) {
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
@@ -41,6 +44,17 @@ RC DeletePhysicalOperator::open(Trx *trx)
     }
 
     RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+    int cell_num = row_tuple->cell_num();
+    for (int i = 0; i < cell_num; i ++) {
+      Value cur_value;
+      rc = row_tuple->cell_at(i, cur_value);
+      if (OB_FAIL(rc)) {
+        return rc;
+      }
+      if (cur_value.attr_type() == AttrType::TEXTS) {
+        pages.emplace_back(cur_value.get_int());
+      }
+    }
     Record   &record    = row_tuple->record();
     records_.emplace_back(std::move(record));
   }
@@ -53,6 +67,14 @@ RC DeletePhysicalOperator::open(Trx *trx)
     rc = trx_->delete_record(table_, record);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to delete record: %s", strrc(rc));
+      return rc;
+    }
+  }
+
+  // 删除text文件中与的相关条目
+  for (PageNum page : pages) {
+    rc = table_->text_file_handler()->delete_text(page);
+    if (OB_FAIL(rc)) {
       return rc;
     }
   }

@@ -696,7 +696,7 @@ RC MysqlCommunicator::write_state(SessionEvent *event, bool &need_disconnect)
 {
   SqlResult *sql_result = event->sql_result();
 
-  const int          buf_size     = 2048;
+  const int          buf_size     = 131072;
   char              *buf          = new char[buf_size];
   const string &state_string = sql_result->state_string();
   if (state_string.empty()) {

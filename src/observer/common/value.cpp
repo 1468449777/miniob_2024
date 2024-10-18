@@ -56,6 +56,7 @@ Value::Value(const Value &other)
 {
   this->attr_type_ = other.attr_type_;
   this->length_    = other.length_;
+  this->text_file_handler_ = other.text_file_handler_;
 
   switch (this->attr_type_) {
     case AttrType::CHARS: {
@@ -85,6 +86,8 @@ Value::Value(Value &&other)
   this->own_data_  = other.own_data_;
   this->value_     = other.value_;
   this->date_formmat_s_ = other.date_formmat_s_;
+  this->text_file_handler_ = other.text_file_handler_;
+  other.text_file_handler_ = nullptr;
   other.date_formmat_s_.clear();
   other.own_data_  = false;
   other.length_    = 0;
@@ -98,6 +101,7 @@ Value &Value::operator=(const Value &other)
   reset();
   this->attr_type_ = other.attr_type_;
   this->length_    = other.length_;
+  this->text_file_handler_ = other.text_file_handler_;
 
   switch (this->attr_type_) {
     case AttrType::CHARS: {
@@ -131,6 +135,8 @@ Value &Value::operator=(Value &&other)
   this->length_    = other.length_;
   this->own_data_  = other.own_data_;
   this->value_     = other.value_;
+  this->text_file_handler_ = other.text_file_handler_;
+  other.text_file_handler_ = nullptr;
   other.own_data_  = false;
   this->date_formmat_s_ = other.date_formmat_s_;
   other.date_formmat_s_.clear();
@@ -183,6 +189,10 @@ void Value::set_data(char *data, int length)
     case AttrType::BOOLEANS: {
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
+    } break;
+    case AttrType::TEXTS: {
+      value_.int_value_ = *(int *)data;
+      length_           = length;
     } break;
 
     // 这里默认已经Value已经调用过 set_valuelist() 函数
@@ -307,6 +317,9 @@ void Value::set_value(const Value &value)
     case AttrType::NULLS: {
       set_null();
     } break;
+    case AttrType::TEXTS: {
+      set_int(value.get_int());
+    }
     default: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -373,6 +386,9 @@ int Value::get_int() const
     }
     case AttrType::BOOLEANS: {
       return (int)(value_.bool_value_);
+    }
+    case AttrType::TEXTS: {
+      return value_.int_value_;
     }
     case AttrType::NULLS: {
       LOG_WARN("try to get null int. type=%d", attr_type_);
@@ -447,6 +463,9 @@ bool Value::get_boolean() const
     case AttrType::BOOLEANS: {
       return value_.bool_value_;
     } break;
+    case AttrType::TEXTS: {
+      return value_.int_value_ != 0;
+    } break;
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return false;
@@ -458,6 +477,18 @@ bool Value::get_boolean() const
 std::vector<Value> *Value::get_valuelist() { return value_.values; }
 
 std::vector<Value> *Value::get_valuelist() const { return value_.values; }
+
+TextFileHandler *Value::get_text_file_handler() {
+  return text_file_handler_;
+}
+
+TextFileHandler *Value::get_text_file_handler() const {
+  return text_file_handler_;
+}
+
+void Value::set_text_file_handler(TextFileHandler *text_file_handler) {
+  text_file_handler_ = text_file_handler;
+}
 
 bool Value::str_like(Value like_value) const{
      std::string s1 =this->get_string();

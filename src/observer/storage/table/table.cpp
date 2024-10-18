@@ -12,6 +12,8 @@ See the Mulan PSL v2 for more details. */
 // Created by Meiyi & Wangyunlai on 2021/5/13.
 //
 
+#include <algorithm>
+#include <filesystem>
 #include <limits.h>
 #include <string.h>
 
@@ -21,6 +23,9 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/algorithm.h"
 #include "common/log/log.h"
 #include "common/global_context.h"
+#include "common/rc.h"
+#include "common/type/attr_type.h"
+#include "sql/parser/parse_defs.h"
 #include "storage/db/db.h"
 #include "storage/buffer/disk_buffer_pool.h"
 #include "storage/common/condition_filter.h"
@@ -29,6 +34,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/index/index.h"
 #include "storage/record/record_manager.h"
 #include "storage/table/table.h"
+#include "storage/text/text_manager.h"
 #include "storage/trx/trx.h"
 
 Table::~Table()
@@ -123,6 +129,26 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
     return rc;
   }
 
+  // 若含有数据类型为text，则新建一个文件，用于存储text相关数据
+  bool text_flag = (std::find_if(attributes.begin(), attributes.end(),
+                                [&](const AttrInfoSqlNode &attr) {
+                                  return attr.type == AttrType::TEXTS;
+                                }) != attributes.end());
+  
+  if (text_flag) {
+    std::string text_file = table_text_file(base_dir, name);
+    rc = db->buffer_pool_manager().create_file(text_file.c_str());
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to create text file.");
+      return rc;
+    }
+    rc = init_text_handler(base_dir);
+    if (OB_FAIL(rc)) {
+      LOG_ERROR("Failed to init text file handler.");
+      return rc;
+    }
+  }
+  // create a text handler to handle the text file
   LOG_INFO("Successfully create table %s:%s", base_dir, name);
   return rc;
 }
@@ -142,6 +168,9 @@ RC Table::drop()
   // 删除元文件
   std::remove(table_meta_file(base_dir_.c_str(), table_meta_.name()).c_str());
 
+  // 删除text文件
+  bpm.close_file(table_text_file(base_dir_.c_str(), table_meta_.name()).c_str());
+  std::remove(table_text_file(base_dir_.c_str(), table_meta_.name()).c_str());
   LOG_INFO("Successfully drop table %s", base_dir_.c_str());
   return rc;
 }
@@ -174,6 +203,12 @@ RC Table::open(Db *db, const char *meta_file, const char *base_dir)
     return rc;
   }
 
+  rc = init_text_handler(base_dir);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to open table %s due to init text handler.", base_dir);
+    return rc;
+  }
+  
   const int index_num = table_meta_.index_num();
   for (int i = 0; i < index_num; i++) {
     const IndexMeta *index_meta = table_meta_.index(i);
@@ -300,7 +335,27 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
     if (field->type() != value.attr_type()) {
       if (value.is_null() && field->can_be_null()) {
         rc = set_value_to_record(record_data, value, field, record_size);
-      } else {
+      } 
+      else if (field->type() == AttrType::TEXTS) {
+        if (value.attr_type() != AttrType::CHARS) {
+          rc = RC::ERROR;
+          break;
+        }
+        std::string text_str = value.get_string();
+        if (text_str.length() > MAX_TEXT_LENGTH) {
+          rc = RC::ERROR;
+          break;
+        }
+        PageNum page_num;
+        rc = text_file_handler_->write_text(text_str, page_num);
+        if (OB_FAIL(rc)) {
+          LOG_ERROR("Failed to write text data to frame/file.");
+          break;
+        }
+        Value real_value(page_num);
+        rc = set_value_to_record(record_data, real_value, field, record_size);
+      }
+      else {
         Value real_value;
         rc = Value::cast_to(value, field->type(), real_value);
         if (OB_FAIL(rc)) {
@@ -364,6 +419,24 @@ RC Table::init_record_handler(const char *base_dir)
     return rc;
   }
 
+  return rc;
+}
+
+RC Table::init_text_handler(const char *base_dir) {
+  RC rc = RC::SUCCESS;
+  string text_file = table_text_file(base_dir, table_meta_.name());
+  if (!std::filesystem::exists(std::filesystem::path(text_file))) {
+    return rc;
+  }
+
+  auto &bpm = db_->buffer_pool_manager();
+  rc = bpm.open_file(db_->log_handler(), text_file.c_str(), text_buffer_pool_);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to open text file.");
+    return rc;
+  }
+
+  text_file_handler_ = new TextFileHandler(*text_buffer_pool_);
   return rc;
 }
 

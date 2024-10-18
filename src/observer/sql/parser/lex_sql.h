@@ -8,6 +8,8 @@
 定义yy_size_t的原因是因为flex生成的代码，会使用yy_size_t与其他类型的数字
 做比较，导致编译报警
 */
+#define YY_BUF_SIZE 131072
+#define YY_READ_BUF_SIZE 131072
 #define YY_TYPEDEF_YY_SIZE_T
 typedef int yy_size_t;
 
@@ -26,7 +28,7 @@ do {                                                         \
 }                                                            \
 while (0);
 
-#line 30 "lex_sql.h"
+#line 32 "lex_sql.h"
 
 #define  YY_INT_ALIGNED short int
 
@@ -541,9 +543,9 @@ extern int yylex \
 #undef yyTABLES_NAME
 #endif
 
-#line 166 "lex_sql.l"
+#line 169 "lex_sql.l"
 
 
-#line 548 "lex_sql.h"
+#line 550 "lex_sql.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

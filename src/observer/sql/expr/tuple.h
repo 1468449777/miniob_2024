@@ -211,6 +211,9 @@ public:
     } else {
       cell.set_type(field_meta->type());
       cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+      if (field_meta->type() == AttrType::TEXTS) {
+        cell.set_text_file_handler(table_->text_file_handler());
+      }
     }
 
     return RC::SUCCESS;

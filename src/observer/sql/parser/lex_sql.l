@@ -4,6 +4,8 @@
 定义yy_size_t的原因是因为flex生成的代码，会使用yy_size_t与其他类型的数字
 做比较，导致编译报警
 */
+#define YY_BUF_SIZE 131072
+#define YY_READ_BUF_SIZE 131072
 #define YY_TYPEDEF_YY_SIZE_T
 typedef int yy_size_t;
 
@@ -113,6 +115,7 @@ INT                                     RETURN_TOKEN(INT_T);
 CHAR                                    RETURN_TOKEN(STRING_T);
 FLOAT                                   RETURN_TOKEN(FLOAT_T);
 DATE                                    RETURN_TOKEN(DATE_T);
+TEXT                                    RETURN_TOKEN(TEXT_T);
 NULL                                    RETURN_TOKEN(NULL_T);
 LOAD                                    RETURN_TOKEN(LOAD);
 DATA                                    RETURN_TOKEN(DATA);

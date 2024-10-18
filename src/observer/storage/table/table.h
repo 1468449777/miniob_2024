@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/types.h"
 #include "common/lang/span.h"
 #include "common/lang/functional.h"
+#include "storage/text/text_manager.h"
 
 struct RID;
 class Record;
@@ -93,6 +94,7 @@ public:
 
   RecordFileHandler *record_handler() const { return record_handler_; }
 
+  TextFileHandler *text_file_handler() const { return text_file_handler_; }
   /**
    * @brief 可以在页面锁保护的情况下访问记录
    * @details 当前是在事务中访问记录，为了提供一个“原子性”的访问模式
@@ -122,6 +124,7 @@ private:
 
 private:
   RC init_record_handler(const char *base_dir);
+  RC init_text_handler(const char *base_dir);
 
 public:
   Index *find_index(const char *index_name) const;
@@ -133,5 +136,7 @@ private:
   TableMeta          table_meta_;
   DiskBufferPool    *data_buffer_pool_ = nullptr;  /// 数据文件关联的buffer pool
   RecordFileHandler *record_handler_   = nullptr;  /// 记录操作
+  TextFileHandler   *text_file_handler_ = nullptr;
+  DiskBufferPool    *text_buffer_pool_ = nullptr;
   vector<Index *>    indexes_;
 };
