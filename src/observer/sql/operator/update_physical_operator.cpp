@@ -62,12 +62,20 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         if (value_is_null) {
           int tmp_invalid_page = -1;
           memcpy(new_record_data + it.first->offset(), &(tmp_invalid_page), copy_len);
-          
         }
         else {
+          if (it.second.attr_type() != AttrType::CHARS) {
+            rc = RC::ERROR;
+            break;
+          }
           PageNum origin_page_num = *(int*)(record.data() + it.first->offset());
           PageNum new_page_num;
-          table_->text_file_handler()->update_text(origin_page_num, it.second.get_string(), new_page_num);
+          string n_str = it.second.get_string();
+          if (n_str.length() > MAX_TEXT_LENGTH) {
+            rc = RC::ERROR;
+            break;
+          }
+          table_->text_file_handler()->update_text(origin_page_num, n_str, new_page_num);
           memcpy(new_record_data + it.first->offset(), &new_page_num, copy_len);
         }
         memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1);  // 修改null标记位
