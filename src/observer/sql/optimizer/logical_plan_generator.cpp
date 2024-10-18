@@ -112,7 +112,7 @@ RC LogicalPlanGenerator::create_plan(
   unique_ptr<LogicalOperator> table_oper(nullptr);
   last_oper = &table_oper;
 
-  const std::vector<pair<string,Table *>> &tables = select_stmt->tables();
+  const std::vector<pair<string, Table *>> &tables = select_stmt->tables();
 
   std::unordered_set<std::string> table_set;
   FilterStmt                     *filter_stmt = select_stmt->filter_stmt();
@@ -139,9 +139,10 @@ RC LogicalPlanGenerator::create_plan(
   for (auto &table : tables) {
     const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
 
-    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table.second, ReadWriteMode::READ_ONLY,table.first));
+    unique_ptr<LogicalOperator> table_get_oper(
+        new TableGetLogicalOperator(table.second, ReadWriteMode::READ_ONLY, table.first));
     table_set.insert(table.first);
-    
+
     FilterStmt *cur_stmt = new FilterStmt;
     for (int i = 0; i < filter_units.size(); ++i) {
       if (check(filter_units[i])) {
@@ -401,7 +402,8 @@ RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, unique_ptr<Logical
 {
   Table                      *table       = delete_stmt->table();
   FilterStmt                 *filter_stmt = delete_stmt->filter_stmt();
-  unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+  unique_ptr<LogicalOperator> table_get_oper(
+      new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
 
   unique_ptr<LogicalOperator> predicate_oper;
 

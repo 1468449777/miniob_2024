@@ -203,6 +203,7 @@ public:
     }
     string field_alias = table_alias_ + "." + string(field_name());
     field_spec_        = make_unique<TupleCellSpec>(table_name(), field_name(), field_alias.c_str());
+    field_alias_       = field_spec_->alias();
   }
   FieldExpr(const Field &field, const string alias = "") : field_(field), table_alias_(alias)
   {
@@ -211,6 +212,7 @@ public:
     }
     string field_alias = table_alias_ + "." + string(field_name());
     field_spec_        = make_unique<TupleCellSpec>(table_name(), field_name(), field_alias.c_str());
+    field_alias_       = field_spec_->alias();
   }
 
   virtual ~FieldExpr() = default;
@@ -232,12 +234,13 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) const override;
 
-  const string field_alias() const { return table_alias_ + "." + field_.field_name(); }
+  const string field_alias() const { return field_alias_; }
 
 private:
   Field                          field_;
   string                         table_alias_;
   std::unique_ptr<TupleCellSpec> field_spec_;  // 这个成员是为了避免每次getvalue 都重新 new 一个
+  const char                    *field_alias_;
 };
 
 /**
@@ -270,6 +273,7 @@ public:
   const Value &get_value() const { return value_; }
 
   bool pure_value() const override { return true; }
+
 private:
   Value value_;
 };
@@ -520,35 +524,33 @@ private:
   std::unique_ptr<SelectSqlNode> subselect_;
 };
 class FunctionExpr;
-class UnboundFunctionExpr : public Expression {
+class UnboundFunctionExpr : public Expression
+{
 public:
-  UnboundFunctionExpr(const char *name, std::vector<std::unique_ptr<Expression>> *child) : function_name_(name) {
+  UnboundFunctionExpr(const char *name, std::vector<std::unique_ptr<Expression>> *child) : function_name_(name)
+  {
     for (std::unique_ptr<Expression> &expr : *child) {
       child_.emplace_back(std::move(expr));
     }
   }
-  std::string function_name() const {
-    return function_name_;
-  }
-  ExprType type() const override { return ExprType::UNBOUND_FUNCTION; }
+  std::string function_name() const { return function_name_; }
+  ExprType    type() const override { return ExprType::UNBOUND_FUNCTION; }
 
   // RC get_column(Chunk &chunk, Column &column) override;
-  RC get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
-  AttrType value_type() const override {
-    return child_[0]->value_type();
-  }
-  std::vector<std::unique_ptr<Expression>> &child() {
-    return child_;
-  }
+  RC       get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
+  AttrType value_type() const override { return child_[0]->value_type(); }
+  std::vector<std::unique_ptr<Expression>> &child() { return child_; }
 
 private:
-  std::string function_name_;
+  std::string                              function_name_;
   std::vector<std::unique_ptr<Expression>> child_;
 };
 
-class FunctionExpr : public Expression {
+class FunctionExpr : public Expression
+{
 public:
-  enum class Type {
+  enum class Type
+  {
     LENGTH,
     ROUND,
     DATE_FORMAT,
@@ -557,15 +559,13 @@ public:
   FunctionExpr(Type type, vector<unique_ptr<Expression>> &child) : type_(type), child_(std::move(child)) {}
   ExprType type() const override { return ExprType::FUNCTION; }
 
-
-  vector<unique_ptr<Expression>> &child() {
-    return child_;
-  }
+  vector<unique_ptr<Expression>> &child() { return child_; }
 
   RC get_value(const Tuple &tuple, Value &value) const override;
   RC try_get_value(Value &value) const override;
-  
-  bool pure_value() const override {
+
+  bool pure_value() const override
+  {
     // bool ans = true;
     for (auto &cur_child : child_) {
       if (cur_child->type() != ExprType::VALUE) {
@@ -575,7 +575,8 @@ public:
     return true;
   }
 
-  AttrType value_type() const override {
+  AttrType value_type() const override
+  {
     // AttrType type = AttrType::UNDEFINED;
     // switch (type_) {
     //   case Type::LENGTH:
@@ -593,12 +594,14 @@ public:
     // return type;
     return child_[0]->value_type();
   }
-public: 
+
+public:
   static RC type_from_string(const char *function_name, FunctionExpr::Type &type);
 
 private:
   RC execute(const vector<Value> &values, Value &value) const;
+
 private:
-  Type type_;
+  Type                           type_;
   vector<unique_ptr<Expression>> child_;
 };

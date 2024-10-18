@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "common/type/attr_type.h"
 #include "common/value.h"
@@ -41,7 +42,9 @@ public:
   RC                get_value(const Tuple &tuple, Value &value) const override;
   RC                try_get_value(Value &value) const override;
   RC                set_father_tuple_for_physical_oper(Tuple *tuple, PhysicalOperator *oper) const;
-  PhysicalOperator *physical_operator() { return oper_.get(); }
+  PhysicalOperator *physical_operator() const { return oper_.get(); }
+  RC                field_meta(std::vector<AttrInfoSqlNode> &attr_infos, Db *db);
+  RC                get_field_exprs(std::vector<Expression *> &field_exprs) const;
 
 private:
   std::unique_ptr<SelectStmt>       subselect_;

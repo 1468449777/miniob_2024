@@ -81,6 +81,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
         GROUP
         ORDER
         TABLE
+        VIEW
         TABLES
         INDEX
         UNIQUE
@@ -116,7 +117,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
         SET
         ON
         LOAD
-        DATA
+        VECTOR_T
         INFILE
         EXPLAIN
         STORAGE
@@ -224,6 +225,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
 %type <sql_node>            update_stmt
 %type <sql_node>            delete_stmt
 %type <sql_node>            create_table_stmt
+%type <sql_node>            create_view_stmt
 %type <sql_node>            drop_table_stmt
 %type <sql_node>            show_tables_stmt
 %type <sql_node>            desc_table_stmt
@@ -263,6 +265,7 @@ command_wrapper:
   | update_stmt
   | delete_stmt
   | create_table_stmt
+  | create_view_stmt
   | drop_table_stmt
   | show_tables_stmt
   | desc_table_stmt
@@ -550,6 +553,38 @@ attr_def:
     }
     ;
 
+create_view_stmt:    /*create view 语句的语法解析树*/
+    CREATE VIEW ID AS select_stmt 
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_VIEW);
+      CreateViewSqlNode &create_view = $$->create_view;
+      create_view.relation_name = $3;
+      free($3);
+
+      SelectSqlNode *sqlnode = new SelectSqlNode;
+      (*sqlnode) = std::move($5->selection);
+      delete $5;
+      Expression * expr = new UnboundSubSelectExpr(sqlnode);
+      create_view.sub_select=std::unique_ptr<Expression>(expr);      
+    }
+    |    CREATE VIEW ID LBRACE idlist RBRACE AS select_stmt 
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_VIEW);
+      CreateViewSqlNode &create_view = $$->create_view;
+      create_view.relation_name = $3;
+      free($3);
+
+      SelectSqlNode *sqlnode = new SelectSqlNode;
+      (*sqlnode) = std::move($8->selection);
+      delete $8;
+      Expression * expr = new UnboundSubSelectExpr(sqlnode);
+      create_view.sub_select=std::unique_ptr<Expression>(expr);      
+    }
+
+    ;
+idlist:
+  ID | 
+  ID COMMA  idlist;
 
 number:
     NUMBER {$$ = $1;}
@@ -560,15 +595,28 @@ type:
     | FLOAT_T  { $$ = static_cast<int>(AttrType::FLOATS); }
     | DATE_T { $$ = static_cast<int>(AttrType::DATES); }
     | TEXT_T { $$ = static_cast<int>(AttrType::TEXTS); }
+    | VECTOR_T { $$ = static_cast<int>(AttrType::VECTORS); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES   expression_list  
+      INSERT INTO ID VALUES   expression_list  
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
       if ($5 != nullptr) {
         $$->insertion.values.swap(*$5);
         delete $5;
+      }
+      free($3);
+    }
+    | 
+    // 这个idlist 是为了支持insert into View 的语法，应该检测idlist的数量和expr_list的 数量是否相等，但不做也不影响
+    INSERT INTO ID LBRACE idlist RBRACE VALUES   expression_list   
+    {
+      $$ = new ParsedSqlNode(SCF_INSERT);
+      $$->insertion.relation_name = $3;
+      if ($8 != nullptr) {
+        $$->insertion.values.swap(*$8);
+        delete $8;
       }
       free($3);
     }
@@ -797,7 +845,7 @@ as_alias:
   }  
   |  AS ID{
     $$ = $2;
-  } 
+  }
   ;
 
 expression_list:
@@ -1131,7 +1179,7 @@ sub_select:
 
 
 load_data_stmt:
-    LOAD DATA INFILE SSS INTO TABLE ID 
+    LOAD ID INFILE SSS INTO TABLE ID 
     {
       char *tmp_file_name = common::substr($4, 1, strlen($4) - 2);
       

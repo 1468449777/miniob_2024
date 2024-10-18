@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/span.h"
 #include "common/lang/functional.h"
 #include "storage/text/text_manager.h"
+#include <memory>
 
 struct RID;
 class Record;
@@ -33,6 +34,8 @@ class IndexScanner;
 class RecordDeleter;
 class Trx;
 class Db;
+class View;
+class SubSelectExpr;
 
 /**
  * @brief 表
@@ -54,7 +57,10 @@ public:
    */
   RC create(Db *db, int32_t table_id, const char *path, const char *name, const char *base_dir,
       span<const AttrInfoSqlNode> attributes, StorageFormat storage_format);
-  
+
+  // 创建虚拟表，封装视图
+  RC create(Db *db, int32_t table_id, View *view);
+
   RC drop();
   /**
    * 打开一个表
@@ -130,6 +136,10 @@ public:
   Index *find_index(const char *index_name) const;
   Index *find_index_by_field(const char *field_name) const;
 
+public:
+  bool  is_view() const { return view_ != nullptr; }
+  View *view() { return view_; }
+
 private:
   Db                *db_ = nullptr;
   string             base_dir_;
@@ -139,4 +149,5 @@ private:
   TextFileHandler   *text_file_handler_ = nullptr;
   DiskBufferPool    *text_buffer_pool_ = nullptr;
   vector<Index *>    indexes_;
+  View              *view_ = nullptr;  // 因为sql执行过程中，都是以table的形式查询，所以将View封装为一个虚拟表，由table对外提供接口
 };

@@ -20,10 +20,15 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/unordered_map.h"
 #include "common/lang/memory.h"
 #include "common/lang/span.h"
+#include "sql/expr/expression.h"
 #include "sql/parser/parse_defs.h"
 #include "storage/buffer/disk_buffer_pool.h"
 #include "storage/clog/disk_log_handler.h"
 #include "storage/buffer/double_write_buffer.h"
+#include "storage/view/view.h"
+#include <memory>
+#include <string>
+#include <unordered_map>
 
 class Table;
 class LogHandler;
@@ -66,14 +71,25 @@ public:
   RC create_table(const char *table_name, span<const AttrInfoSqlNode> attributes,
       const StorageFormat storage_format = StorageFormat::ROW_FORMAT);
 
+  RC create_view(const char *view_name, std::unique_ptr<Expression> sub_select);
 
   RC drop_table(const char *table_name);
 
+  RC drop_view(const char *view_name);
 
   /**
    * @brief 根据表名查找表
    */
   Table *find_table(const char *table_name) const;
+  /**
+   * @brief 根据表ID查找表
+   */
+  View *find_view(int32_t view_id) const;
+
+    /**
+   * @brief 根据表名查找表
+   */
+  View *find_view(const char *view) const;
   /**
    * @brief 根据表ID查找表
    */
@@ -115,15 +131,17 @@ private:
   RC init_dblwr_buffer();
 
 private:
-  string                         name_;                 ///< 数据库名称
-  string                         path_;                 ///< 数据库文件存放的目录
-  unordered_map<string, Table *> opened_tables_;        ///< 当前所有打开的表
+  string                         name_;           ///< 数据库名称
+  string                         path_;           ///< 数据库文件存放的目录
+  unordered_map<string, Table *> opened_tables_;  ///< 当前所有打开的表
+  unordered_map<string, View *>  opened_views_;
   unique_ptr<BufferPoolManager>  buffer_pool_manager_;  ///< 当前数据库的buffer pool管理器
   unique_ptr<LogHandler>         log_handler_;          ///< 当前数据库的日志处理器
   unique_ptr<TrxKit>             trx_kit_;              ///< 当前数据库的事务管理器
 
   /// 给每个table都分配一个ID，用来记录日志。这里假设所有的DDL都不会并发操作，所以相关的数据都不上锁
   int32_t next_table_id_ = 0;
+  int32_t next_view_id_ = 0;
 
   LSN check_point_lsn_ = 0;  ///< 当前数据库的检查点LSN。会记录到磁盘中。
 };

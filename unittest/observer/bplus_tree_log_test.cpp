@@ -74,11 +74,11 @@ TEST(BplusTreeLog, base)
   ASSERT_EQ(RC::SUCCESS, log_handler->start());
 
   auto bplus_tree = make_unique<BplusTreeHandler>();
-  AttrType attr_types[2];
-  attr_types[0] = AttrType::INTS;
+  // AttrType attr_types[2];
+  // attr_types[0] = AttrType::INTS;
 
-  int len[2];
-  len[0] = 4;
+  // int len[2];
+  // len[0] = 4;
   // ASSERT_EQ(RC::SUCCESS, bplus_tree->create(*log_handler, *buffer_pool, bp_filename, attr_types, len, 0));
 
   // 2. insert some key-value pairs into the bplus tree

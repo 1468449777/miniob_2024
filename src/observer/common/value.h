@@ -46,6 +46,7 @@ public:
   friend class NullType;
   friend class TextType;
   friend class ValuesType;
+  friend class VectorType;
 
   Value() = default;
 

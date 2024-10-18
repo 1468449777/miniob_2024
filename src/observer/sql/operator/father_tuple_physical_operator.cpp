@@ -16,7 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "sql/expr/tuple.h"
 
-FatherTuplePhysicalOperator::FatherTuplePhysicalOperator() { first_called_ = true; }
+FatherTuplePhysicalOperator::FatherTuplePhysicalOperator() { father_tuple_ = &empty_tuple_; }
 
 RC FatherTuplePhysicalOperator::open(Trx *trx) { return RC ::SUCCESS; }
 
@@ -31,9 +31,9 @@ RC FatherTuplePhysicalOperator::next()
 }
 
 RC FatherTuplePhysicalOperator::close()
-{
+{ 
   first_called_ = true;
-  father_tuple_ = nullptr;
+  father_tuple_ = &empty_tuple_;
   return RC::SUCCESS;
 }
 
