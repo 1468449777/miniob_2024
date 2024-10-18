@@ -132,6 +132,7 @@ public:
   bool   get_boolean() const;
   std::vector<Value>* get_valuelist();
   std::vector<Value>* get_valuelist() const;
+  std::vector<int>* get_vector();
   TextFileHandler *get_text_file_handler();
   TextFileHandler *get_text_file_handler() const;
 private:
@@ -139,6 +140,7 @@ private:
   void set_float(float val);
   void set_string(const char *s, int len = 0);
   void set_date(const char *s);
+  void set_vecs(const char *s);
   void set_date(int val);
   void set_string_from_other(const Value &other);
 
@@ -153,6 +155,7 @@ private:
     bool                bool_value_;
     char               *pointer_value_;
     std::vector<Value> *values;
+    char               *vectors;
   } value_ = {.int_value_ = 0};
 
   TextFileHandler *text_file_handler_ = nullptr;

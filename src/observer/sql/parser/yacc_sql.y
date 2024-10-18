@@ -183,6 +183,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
 %token <string> ID
 %token <string> SSS
 %token <string> DATE_STR
+%token <string> VEC_STR
 //非终结符
 
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
@@ -480,8 +481,8 @@ attr_def:
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
-      $$->name = $1;
-      $$->length = $4;
+      $$->name = $1; 
+      $$->length = $4 * 4;            
       free($1);
       $$->can_be_null = true;
     }
@@ -665,6 +666,15 @@ value:
     }
     |NULL_T{
       $$ = new Value("null",-2);  // -2 表示null类型
+    }
+    |VEC_STR{
+      char *tmp = common::substr($1,1,strlen($1)-2);
+      if(tmp[0] == '['){
+        tmp = common::substr(tmp,1,strlen($1)-2);
+      }
+      $$ = new Value(tmp,-3);
+      free(tmp);
+      free($1);
     }
     ;
 storage_format:

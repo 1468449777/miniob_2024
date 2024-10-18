@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/type/attr_type.h"
 #include <cstdint>
+#include <cstring>
 #include <vector>
 #include <regex>
 #include "sql/expr/expression.h"
@@ -38,30 +39,39 @@ Value::Value(const char *s, int len /*= 0*/)
 
     case -2: set_null(); break;
 
+    case -3: set_vecs(s); break;
+
     default: set_string(s, len);
   }
 }
 
-Value::Value( std::vector<std::unique_ptr<Expression>> &value_exprs)
+Value::Value(std::vector<std::unique_ptr<Expression>> &value_exprs)
 {
-   set_valuelist();
-   Value tmp_value;
-   for(auto &expr: value_exprs){
-      expr->try_get_value(tmp_value);
-      value_.values->push_back(tmp_value);
-   }
+  set_valuelist();
+  Value tmp_value;
+  for (auto &expr : value_exprs) {
+    expr->try_get_value(tmp_value);
+    value_.values->push_back(tmp_value);
+  }
 }
 
 Value::Value(const Value &other)
 {
-  this->attr_type_ = other.attr_type_;
-  this->length_    = other.length_;
+  this->attr_type_         = other.attr_type_;
+  this->length_            = other.length_;
   this->text_file_handler_ = other.text_file_handler_;
 
   switch (this->attr_type_) {
     case AttrType::CHARS: {
       this->own_data_ = other.own_data_;
       set_string_from_other(other);
+    } break;
+
+    case AttrType::VECTORS: {
+      this->own_data_      = other.own_data_;
+      this->value_.vectors = new char[other.length()];
+      memcpy(this->value_.vectors, other.value_.vectors, other.length());
+
     } break;
 
     case AttrType::VALUESLISTS: {
@@ -72,8 +82,8 @@ Value::Value(const Value &other)
     } break;
 
     default: {
-      this->own_data_ = other.own_data_;
-      this->value_    = other.value_;
+      this->own_data_       = other.own_data_;
+      this->value_          = other.value_;
       this->date_formmat_s_ = other.date_formmat_s_;
     } break;
   }
@@ -81,16 +91,16 @@ Value::Value(const Value &other)
 
 Value::Value(Value &&other)
 {
-  this->attr_type_ = other.attr_type_;
-  this->length_    = other.length_;
-  this->own_data_  = other.own_data_;
-  this->value_     = other.value_;
-  this->date_formmat_s_ = other.date_formmat_s_;
+  this->attr_type_         = other.attr_type_;
+  this->length_            = other.length_;
+  this->own_data_          = other.own_data_;
+  this->value_             = other.value_;
+  this->date_formmat_s_    = other.date_formmat_s_;
   this->text_file_handler_ = other.text_file_handler_;
   other.text_file_handler_ = nullptr;
   other.date_formmat_s_.clear();
-  other.own_data_  = false;
-  other.length_    = 0;
+  other.own_data_ = false;
+  other.length_   = 0;
 }
 
 Value &Value::operator=(const Value &other)
@@ -99,14 +109,21 @@ Value &Value::operator=(const Value &other)
     return *this;
   }
   reset();
-  this->attr_type_ = other.attr_type_;
-  this->length_    = other.length_;
+  this->attr_type_         = other.attr_type_;
+  this->length_            = other.length_;
   this->text_file_handler_ = other.text_file_handler_;
 
   switch (this->attr_type_) {
     case AttrType::CHARS: {
       this->own_data_ = other.own_data_;
       set_string_from_other(other);
+    } break;
+
+    case AttrType::VECTORS: {
+      this->own_data_      = other.own_data_;
+      this->value_.vectors = new char[other.length()];
+      memcpy(this->value_.vectors, other.value_.vectors, other.length());
+
     } break;
 
     case AttrType::VALUESLISTS: {
@@ -117,8 +134,8 @@ Value &Value::operator=(const Value &other)
     } break;
 
     default: {
-      this->own_data_ = other.own_data_;
-      this->value_    = other.value_;
+      this->own_data_       = other.own_data_;
+      this->value_          = other.value_;
       this->date_formmat_s_ = other.date_formmat_s_;
     } break;
   }
@@ -131,16 +148,16 @@ Value &Value::operator=(Value &&other)
     return *this;
   }
   reset();
-  this->attr_type_ = other.attr_type_;
-  this->length_    = other.length_;
-  this->own_data_  = other.own_data_;
-  this->value_     = other.value_;
+  this->attr_type_         = other.attr_type_;
+  this->length_            = other.length_;
+  this->own_data_          = other.own_data_;
+  this->value_             = other.value_;
   this->text_file_handler_ = other.text_file_handler_;
   other.text_file_handler_ = nullptr;
-  other.own_data_  = false;
-  this->date_formmat_s_ = other.date_formmat_s_;
+  other.own_data_          = false;
+  this->date_formmat_s_    = other.date_formmat_s_;
   other.date_formmat_s_.clear();
-  other.length_    = 0;
+  other.length_ = 0;
   return *this;
 }
 
@@ -153,7 +170,15 @@ void Value::reset()
         value_.pointer_value_ = nullptr;
       }
       break;
+
+    case AttrType::VECTORS:
+      if (own_data_ && value_.vectors != nullptr) {
+        delete[] value_.vectors;
+        value_.vectors = nullptr;
+      }
+      break;
     case AttrType::VALUESLISTS:
+
       if (own_data_ && value_.values != nullptr) {
         delete value_.values;
         own_data_     = false;
@@ -199,6 +224,14 @@ void Value::set_data(char *data, int length)
     case AttrType::VALUESLISTS: {
       value_.values->swap(*(std::vector<Value> *)data);
       delete (std::vector<Value> *)data;
+    }
+    case AttrType::VECTORS: {
+      reset();
+      attr_type_           = AttrType::VECTORS;
+      this->own_data_      = true;
+      length_              = length;
+      this->value_.vectors = new char[length];
+      memcpy(this->value_.vectors, data, length);
     }
     case AttrType::NULLS:  // 暂时不用做什么
     default: {
@@ -271,6 +304,25 @@ void Value::set_date(const char *s)
   length_           = 4;
 }
 
+void Value::set_vecs(const char *s)
+{
+  reset();
+  attr_type_ = AttrType::VECTORS;
+  std::stringstream ss(s);
+  string            temp;
+  std::vector<int>  vec_tmp;
+
+  own_data_ = true;
+  while (std::getline(ss, temp, ',')) {
+    // 将分割后的字符串转换为 int 并放入 vector
+    vec_tmp.push_back(std::stoi(temp));
+  }
+  length_        = vec_tmp.size() * 4;
+  value_.vectors = new char[vec_tmp.size() * sizeof(int32_t)];
+  // 使用 memcpy 将 vec 的数据拷贝到 int* 数组中
+  std::memcpy(value_.vectors, vec_tmp.data(), vec_tmp.size() * sizeof(int32_t));
+}
+
 void Value::set_null()
 {
   reset();
@@ -341,6 +393,12 @@ const char *Value::data() const
   switch (attr_type_) {
     case AttrType::CHARS: {
       return value_.pointer_value_;
+    } break;
+    case AttrType::VECTORS: {
+      return value_.vectors;
+    } break;
+    case AttrType::VALUESLISTS: {
+      return (char *)value_.values->data();
     } break;
     default: {
       return (const char *)&value_;
@@ -478,38 +536,33 @@ std::vector<Value> *Value::get_valuelist() { return value_.values; }
 
 std::vector<Value> *Value::get_valuelist() const { return value_.values; }
 
-TextFileHandler *Value::get_text_file_handler() {
-  return text_file_handler_;
-}
+TextFileHandler *Value::get_text_file_handler() { return text_file_handler_; }
 
-TextFileHandler *Value::get_text_file_handler() const {
-  return text_file_handler_;
-}
+TextFileHandler *Value::get_text_file_handler() const { return text_file_handler_; }
 
-void Value::set_text_file_handler(TextFileHandler *text_file_handler) {
-  text_file_handler_ = text_file_handler;
-}
+void Value::set_text_file_handler(TextFileHandler *text_file_handler) { text_file_handler_ = text_file_handler; }
 
-bool Value::str_like(Value like_value) const{
-     std::string s1 =this->get_string();
-     std::string s2= like_value.get_string();
-    std::string pattern = s2;
-    // 替换 SQL 的 LIKE 模式为正则表达式模式
-    // 转义 regex 特殊字符
-    std::string regex_special_chars = "\\^.$|()[]*+?";
-    for(char c : regex_special_chars) {
-        std::string str_c(1, c);
-        std::regex r("\\" + str_c);
-        pattern = std::regex_replace(pattern, r, "\\" + str_c);
-    }
-    // 替换 % 为 .*
-    std::regex r1("%");
-    pattern = std::regex_replace(pattern, r1, ".*");
-    // 替换 _ 为 .
-    std::regex r2("_");
-    pattern = std::regex_replace(pattern, r2, ".");
-    // 创建正则表达式
-    std::regex r(pattern, std::regex::ECMAScript | std::regex::icase);
-    // 匹配字符串
-    return std::regex_match(s1, r);
+bool Value::str_like(Value like_value) const
+{
+  std::string s1      = this->get_string();
+  std::string s2      = like_value.get_string();
+  std::string pattern = s2;
+  // 替换 SQL 的 LIKE 模式为正则表达式模式
+  // 转义 regex 特殊字符
+  std::string regex_special_chars = "\\^.$|()[]*+?";
+  for (char c : regex_special_chars) {
+    std::string str_c(1, c);
+    std::regex  r("\\" + str_c);
+    pattern = std::regex_replace(pattern, r, "\\" + str_c);
+  }
+  // 替换 % 为 .*
+  std::regex r1("%");
+  pattern = std::regex_replace(pattern, r1, ".*");
+  // 替换 _ 为 .
+  std::regex r2("_");
+  pattern = std::regex_replace(pattern, r2, ".");
+  // 创建正则表达式
+  std::regex r(pattern, std::regex::ECMAScript | std::regex::icase);
+  // 匹配字符串
+  return std::regex_match(s1, r);
 }

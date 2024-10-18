@@ -131,7 +131,8 @@ extern int yydebug;
     ID = 332,                      /* ID  */
     SSS = 333,                     /* SSS  */
     DATE_STR = 334,                /* DATE_STR  */
-    UMINUS = 335                   /* UMINUS  */
+    VEC_STR = 335,                 /* VEC_STR  */
+    UMINUS = 336                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -170,7 +171,7 @@ union YYSTYPE
   std::vector<JoinEntry> *                   join_list;
   SelectSqlNode *                            sub_select;
 
-#line 174 "yacc_sql.hpp"
+#line 175 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
