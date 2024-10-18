@@ -116,6 +116,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
         SET
         ON
         LOAD
+        VECTOR_T
         INFILE
         EXPLAIN
         STORAGE
@@ -592,6 +593,7 @@ type:
     | STRING_T { $$ = static_cast<int>(AttrType::CHARS); }
     | FLOAT_T  { $$ = static_cast<int>(AttrType::FLOATS); }
     | DATE_T { $$ = static_cast<int>(AttrType::DATES); }
+    | VECTOR_T { $$ = static_cast<int>(AttrType::VECTORS); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
       INSERT INTO ID VALUES   expression_list  

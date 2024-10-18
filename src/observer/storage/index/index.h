@@ -40,6 +40,16 @@ public:
   Index()          = default;
   virtual ~Index() = default;
 
+    virtual RC create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta *field_metas[], int field_num) 
+  {
+    return RC::UNSUPPORTED;
+  }
+  virtual RC open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta *field_metas[], int field_num)
+  {
+    return RC::UNSUPPORTED;
+  }
+  virtual bool is_vector_index() { return false; }
+
   const IndexMeta &index_meta() const { return index_meta_; }
 
   const std::vector<FieldMeta> &field_metas() const { return field_metas_; }

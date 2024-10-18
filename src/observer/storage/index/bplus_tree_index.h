@@ -27,8 +27,8 @@ public:
   BplusTreeIndex() = default;
   virtual ~BplusTreeIndex() noexcept;
 
-  RC create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta *field_metas[], int field_num);
-  RC open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta *field_metas[], int field_num);
+  RC create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta *field_metas[], int field_num) override;
+  RC open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta *field_metas[], int field_num) override;
   RC close();
   RC make_entry_key(const char *record, char *&entry_key);
 
