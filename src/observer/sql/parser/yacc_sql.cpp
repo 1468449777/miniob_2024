@@ -2383,7 +2383,7 @@ yyreduce:
             {
       char *tmp = common::substr((yyvsp[0].string),1,strlen((yyvsp[0].string))-2);
       if(tmp[0] == '['){
-        tmp = common::substr(tmp,1,strlen((yyvsp[0].string))-2);
+        tmp = common::substr(tmp,1,strlen(tmp)-2);
       }
       (yyval.value) = new Value(tmp,-3);
       free(tmp);

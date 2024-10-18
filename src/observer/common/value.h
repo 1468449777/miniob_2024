@@ -136,7 +136,7 @@ public:
   std::vector<int>   *get_vector();
   TextFileHandler    *get_text_file_handler();
   TextFileHandler    *get_text_file_handler() const;
-  int                *get_vectors() const { return (int *)value_.vectors; }
+  float                *get_vectors() const { return (float *)value_.vectors; }
 
 private:
   void set_int(int val);
@@ -144,7 +144,7 @@ private:
   void set_string(const char *s, int len = 0);
   void set_date(const char *s);
   void set_vecs(const char *s);
-  void set_vecs(vector<int> &vecs);
+  void set_vecs(vector<float> &vecs);
   void set_date(int val);
   void set_string_from_other(const Value &other);
 

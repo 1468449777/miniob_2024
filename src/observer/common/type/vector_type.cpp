@@ -21,7 +21,9 @@ int VectorType::compare(const Value &left, const Value &right) const
   }
 
   for (int i = 0; i < left.length() / 4; i++) {
-    if (left.get_vectors()[i] != right.get_vectors()[i]) {
+    Value left_tmp(left.get_vectors()[i]);
+    Value right_tmp(right.get_vectors()[i]);
+    if (left_tmp.compare(right_tmp) != 0) {
       return INT32_MAX;
     }
   }
@@ -29,7 +31,7 @@ int VectorType::compare(const Value &left, const Value &right) const
 }
 RC VectorType::add(const Value &left, const Value &right, Value &result) const
 {
-  vector<int> tmp;
+  vector<float> tmp;
   for (int i = 0; i < left.length() / 4; i++) {
     tmp.push_back(left.get_vectors()[i] + right.get_vectors()[i]);
   }
@@ -38,7 +40,7 @@ RC VectorType::add(const Value &left, const Value &right, Value &result) const
 }
 RC VectorType::subtract(const Value &left, const Value &right, Value &result) const
 {
-  vector<int> tmp;
+  vector<float> tmp;
   for (int i = 0; i < left.length() / 4; i++) {
     tmp.push_back(left.get_vectors()[i] - right.get_vectors()[i]);
   }
@@ -51,7 +53,7 @@ RC VectorType::to_string(const Value &val, string &result) const
   result = "[";
 
   for (int i = 0; i < val.length() / 4; i++) {
-    result += std::to_string(((int *)val.value_.vectors)[i]) + ',';
+    result += common::double_to_str(((float *)val.value_.vectors)[i]) + ',';
   }
   result[result.size() - 1] = ']';
 

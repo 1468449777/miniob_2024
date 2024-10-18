@@ -310,20 +310,20 @@ void Value::set_vecs(const char *s)
   attr_type_ = AttrType::VECTORS;
   std::stringstream ss(s);
   string            temp;
-  std::vector<int>  vec_tmp;
+  std::vector<float>  vec_tmp;
 
   own_data_ = true;
   while (std::getline(ss, temp, ',')) {
     // 将分割后的字符串转换为 int 并放入 vector
-    vec_tmp.push_back(std::stoi(temp));
+    vec_tmp.push_back(std::stof(temp));
   }
   length_        = vec_tmp.size() * 4;
-  value_.vectors = new char[vec_tmp.size() * sizeof(int32_t)];
+  value_.vectors = new char[vec_tmp.size() * sizeof(float)];
   // 使用 memcpy 将 vec 的数据拷贝到 int* 数组中
-  std::memcpy(value_.vectors, vec_tmp.data(), vec_tmp.size() * sizeof(int32_t));
+  std::memcpy(value_.vectors, vec_tmp.data(), vec_tmp.size() * sizeof(float));
 }
 
-void Value::set_vecs(vector<int> &vec_tmp)
+void Value::set_vecs(vector<float> &vec_tmp)
 {
   reset();
   attr_type_ = AttrType::VECTORS;
@@ -331,9 +331,9 @@ void Value::set_vecs(vector<int> &vec_tmp)
   own_data_ = true;
 
   length_        = vec_tmp.size() * 4;
-  value_.vectors = new char[vec_tmp.size() * sizeof(int32_t)];
+  value_.vectors = new char[vec_tmp.size() * sizeof(float)];
   // 使用 memcpy 将 vec 的数据拷贝到 int* 数组中
-  std::memcpy(value_.vectors, vec_tmp.data(), vec_tmp.size() * sizeof(int32_t));
+  std::memcpy(value_.vectors, vec_tmp.data(), vec_tmp.size() * sizeof(float));
 }
 
 void Value::set_null()
