@@ -129,13 +129,15 @@ extern int yydebug;
     L2_DISTANCE = 330,             /* L2_DISTANCE  */
     COSINE_DISTANCE = 331,         /* COSINE_DISTANCE  */
     INNER_PRODUCT = 332,           /* INNER_PRODUCT  */
-    NUMBER = 333,                  /* NUMBER  */
-    FLOAT = 334,                   /* FLOAT  */
-    ID = 335,                      /* ID  */
-    SSS = 336,                     /* SSS  */
-    DATE_STR = 337,                /* DATE_STR  */
-    VEC_STR = 338,                 /* VEC_STR  */
-    UMINUS = 339                   /* UMINUS  */
+    WITH = 333,                    /* WITH  */
+    LIMIT = 334,                   /* LIMIT  */
+    NUMBER = 335,                  /* NUMBER  */
+    FLOAT = 336,                   /* FLOAT  */
+    ID = 337,                      /* ID  */
+    SSS = 338,                     /* SSS  */
+    DATE_STR = 339,                /* DATE_STR  */
+    VEC_STR = 340,                 /* VEC_STR  */
+    UMINUS = 341                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -144,7 +146,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 154 "yacc_sql.y"
+#line 159 "yacc_sql.y"
 
   ParsedSqlNode *                            sql_node;
   ConditionSqlNode *                         condition;
@@ -174,7 +176,7 @@ union YYSTYPE
   std::vector<JoinEntry> *                   join_list;
   SelectSqlNode *                            sub_select;
 
-#line 178 "yacc_sql.hpp"
+#line 180 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

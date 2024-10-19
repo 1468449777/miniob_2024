@@ -38,20 +38,26 @@ public:
   RC init(const char *name, const FieldMeta *fields[], int field_num, int is_unique);
 
 public:
-  const char                     *name() const;
-  const char                     *field(int id) const;
+  const char                    *name() const;
+  const char                    *field(int id) const;
   const std::vector<std::string> fields() const { return fields_; }
   const int                      field_num() const { return field_num_; }
   const int                      unique() const { return unique_; }
   void                           desc(ostream &os) const;
+  const string                   dis_type() const { return dis_type_; }
+  const int                      lists() const { return lists_; }
+  const int                      probes() const { return probes_; }
 
 public:
   void      to_json(Json::Value &json_value) const;
   static RC from_json(const TableMeta &table, const Json::Value &json_value, IndexMeta &index);
 
 protected:
-  string                   name_;                      // index's name
-  std::vector<std::string> fields_;                    // fields' name
+  string                   name_;    // index's name
+  std::vector<std::string> fields_;  // fields' name
   int                      field_num_;
-  int                      unique_=0;                  // field is unique?
+  int                      unique_ = 0;  // field is unique?
+  string                   dis_type_;
+  int                      lists_;
+  int                      probes_;
 };

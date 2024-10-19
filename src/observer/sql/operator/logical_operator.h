@@ -45,6 +45,7 @@ enum class LogicalOperatorType
   GROUP_BY,    ///< 分组
   ORDER_BY,    ///< 排序
   FATHER_TUPLE, ///< 用于传入父查询的tuple
+  LIMIT,
 };
 
 /**

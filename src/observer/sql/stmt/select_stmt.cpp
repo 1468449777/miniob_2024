@@ -180,6 +180,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->group_by_.swap(group_by_expressions);
   select_stmt->order_by_.order_by_attrs.swap(order_by_expressions);
   select_stmt->order_by_.order_by_types.swap(select_sql.order_by.order_by_types);
-  stmt = select_stmt;
+  select_stmt->limit_ = select_sql.limit;
+  stmt                = select_stmt;
   return RC::SUCCESS;
 }

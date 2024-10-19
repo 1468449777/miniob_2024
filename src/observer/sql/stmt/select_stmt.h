@@ -50,6 +50,7 @@ public:
   std::vector<std::unique_ptr<Expression>>      &query_expressions() { return query_expressions_; }
   std::vector<std::unique_ptr<Expression>>      &group_by() { return group_by_; }
   OrderByInfo                                   &order_by() { return order_by_; }
+  int                                            limit() { return limit_; }
 
 private:
   std::vector<std::unique_ptr<Expression>> query_expressions_;
@@ -58,4 +59,5 @@ private:
   std::vector<std::unique_ptr<Expression>> group_by_;
   FilterStmt                              *group_by_filter_stmt_ = nullptr;
   OrderByInfo                              order_by_;
+  int                                      limit_;
 };

@@ -236,7 +236,7 @@ void Value::set_data(char *data, int length)
     case AttrType::VALUESLISTS: {
       value_.values->swap(*(std::vector<Value> *)data);
       delete (std::vector<Value> *)data;
-    }
+    } break;
     case AttrType::VECTORS: {
       reset();
       attr_type_           = AttrType::VECTORS;
@@ -244,7 +244,7 @@ void Value::set_data(char *data, int length)
       length_              = length;
       this->value_.vectors = new char[length];
       memcpy(this->value_.vectors, data, length);
-    }
+    } break;
     case AttrType::NULLS:  // 暂时不用做什么
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);

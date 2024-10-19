@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+
 #include "storage/table/table_meta.h"
 #include "common/types.h"
 #include "common/lang/span.h"
@@ -36,6 +37,7 @@ class Trx;
 class Db;
 class View;
 class SubSelectExpr;
+class FunctionExpr;
 
 /**
  * @brief 表
@@ -94,6 +96,9 @@ public:
   // TODO refactor
   RC create_index(Trx *trx, std::vector<const FieldMeta *> field_meta, const char *index_name, int unique);
 
+  // RC create_index(Trx *trx, std::vector<const FieldMeta *> field_meta, const char *index_name, int unique,
+  //     FunctionExpr::Type dis_type_, int lists_, int probes_);
+
   RC get_record_scanner(RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode);
 
   RC get_chunk_scanner(ChunkFileScanner &scanner, Trx *trx, ReadWriteMode mode);
@@ -147,10 +152,10 @@ private:
   Db                *db_ = nullptr;
   string             base_dir_;
   TableMeta          table_meta_;
-  DiskBufferPool    *data_buffer_pool_ = nullptr;  /// 数据文件关联的buffer pool
-  RecordFileHandler *record_handler_   = nullptr;  /// 记录操作
+  DiskBufferPool    *data_buffer_pool_  = nullptr;  /// 数据文件关联的buffer pool
+  RecordFileHandler *record_handler_    = nullptr;  /// 记录操作
   TextFileHandler   *text_file_handler_ = nullptr;
-  DiskBufferPool    *text_buffer_pool_ = nullptr;
+  DiskBufferPool    *text_buffer_pool_  = nullptr;
   TextFileHandler   *vector_handler_   = nullptr;
   DiskBufferPool    *vector_buffer_pool_ = nullptr;
   vector<Index *>    indexes_;

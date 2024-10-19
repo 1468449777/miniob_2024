@@ -178,9 +178,9 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     }
   }
 
-  if (!table_->is_view()) {
-    table_->data_buffer_pool()->flush_all_pages();
-  }
+  // if (!table_->is_view()) {
+  //   table_->data_buffer_pool()->flush_all_pages();
+  // }
 
   return RC::SUCCESS;
 }

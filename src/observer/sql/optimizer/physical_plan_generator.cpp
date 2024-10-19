@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/calc_physical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
 #include "sql/operator/delete_physical_operator.h"
+#include "sql/operator/limit_logical_operator.h"
 #include "sql/operator/sort_logical_operator.h"
 #include "sql/operator/sort_physical_operator.h"
 #include "sql/operator/update_logical_operator.h"
@@ -51,7 +52,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/father_tuple_logical_operator.h"
 #include "sql/operator/father_tuple_physical_operator.h"
 #include "sql/operator/group_by_physical_operator.h"
-
+#include "sql/operator/limit_physical_operator.h"
 using namespace std;
 
 RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<PhysicalOperator> &oper)
@@ -103,6 +104,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
       return create_plan(static_cast<SortLogicalOperator &>(logical_operator), oper);
     } break;
 
+    case LogicalOperatorType::LIMIT: {
+      return create_plan(static_cast<LimitLogicalOperator &>(logical_operator), oper);
+    } break;
+
     case LogicalOperatorType::FATHER_TUPLE: {
       return create_plan(static_cast<FatherTupleLogicalOperator &>(logical_operator), oper);
     } break;
@@ -144,7 +149,7 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
   vector<unique_ptr<Expression>> &predicates = table_get_oper.predicates();
   // 看看是否有可以用于索引查找的表达式
   Table *table = table_get_oper.table();
-  
+
   // 如果是View，直接生成View_scan_oper，不考虑索引，因为虚拟表没有索引？
   if (table->is_view()) {
     auto table_scan_oper =
@@ -538,6 +543,30 @@ RC PhysicalPlanGenerator::create_plan(SortLogicalOperator &logical_oper, std::un
   sort_oper->add_child(std::move(child_physical_oper));
 
   oper = std::move(sort_oper);
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(LimitLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper)
+{
+  RC rc = RC::SUCCESS;
+
+  unique_ptr<LimitPhysicalOperator> limit_oper;
+
+  limit_oper = make_unique<LimitPhysicalOperator>(logical_oper.limit_);
+
+  ASSERT(logical_oper.children().size() == 1, "order by operator should have 1 child");
+
+  LogicalOperator             &child_oper = *logical_oper.children().front();
+  unique_ptr<PhysicalOperator> child_physical_oper;
+  rc = create(child_oper, child_physical_oper);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to create child physical operator of group by operator. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  limit_oper->add_child(std::move(child_physical_oper));
+
+  oper = std::move(limit_oper);
   return rc;
 }
 

@@ -774,7 +774,7 @@ RC FunctionExpr::get_value(const Tuple &tuple, Value &value) const{
   args.emplace_back(tmp_value);
   if (child_.size() > 1) {
     for (int i = 1; i < child_.size(); i++) {
-      rc = child_[i]->try_get_value(tmp_value);
+      rc = child_[i]->get_value(tuple,tmp_value);
       if (OB_FAIL(rc)) {
         return rc;
       }
@@ -928,7 +928,7 @@ RC FunctionExpr::execute_vec(const Value &left, const Value &right, Value &value
       }
       mod_1 = sqrtf(mod_1);
       mod_2 = sqrtf(mod_2);
-      f_result = (inner_p / (mod_1 * mod_2));
+      f_result =1 - (inner_p / (mod_1 * mod_2));
     } break;
     case Type::INNER_PRODUCT: {
       for (int i = 0; i < v1.size(); i++) {
