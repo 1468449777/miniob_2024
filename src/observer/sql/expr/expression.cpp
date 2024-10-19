@@ -928,7 +928,7 @@ RC FunctionExpr::execute_vec(const Value &left, const Value &right, Value &value
       }
       mod_1 = sqrtf(mod_1);
       mod_2 = sqrtf(mod_2);
-      f_result = (inner_p / (mod_1 * mod_2));
+      f_result =1 - (inner_p / (mod_1 * mod_2));
     } break;
     case Type::INNER_PRODUCT: {
       for (int i = 0; i < v1.size(); i++) {

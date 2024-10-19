@@ -14,8 +14,12 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <cstring>
 #include <string>
+#include <vector>
 
+#include "sql/expr/expression.h"
+#include "sql/parser/parse_defs.h"
 #include "sql/stmt/stmt.h"
 
 struct CreateIndexSqlNode;
@@ -29,25 +33,41 @@ class FieldMeta;
 class CreateIndexStmt : public Stmt
 {
 public:
-  CreateIndexStmt(Table *table, std::vector<const FieldMeta *> field_metas, const std::string &index_name, int unique)
+  CreateIndexStmt(Table *table, std::vector<const FieldMeta *> field_metas, const std::string &index_name, int unique,
+      const std::vector<ConditionSqlNode> &parameters)
       : table_(table), field_metas_(field_metas), index_name_(index_name), unique_(unique)
-  {}
+  {
+    for (auto &it : parameters) {
+      if (strcmp("TYPE", it.left_expression.front()->name()) == 0) {
+        // donothing
+      } else if (strcmp("DISTANCE", it.left_expression.front()->name()) == 0) {
+        dis_type_ = it.right_expression.front()->name();
+      } else if (strcmp("LISTS", it.left_expression.front()->name()) == 0) {
+        lists_ = std::stoi(it.right_expression.front()->name());
+      } else if (strcmp("PROBES", it.left_expression.front()->name()) == 0) {
+        probes_ = std::stoi(it.right_expression.front()->name());
+      }
+    }
+  }
 
   virtual ~CreateIndexStmt() = default;
 
   StmtType type() const override { return StmtType::CREATE_INDEX; }
 
   Table                         *table() const { return table_; }
-  std::vector<const FieldMeta *>field_meta() const { return field_metas_; }
+  std::vector<const FieldMeta *> field_meta() const { return field_metas_; }
   const std::string             &index_name() const { return index_name_; }
-  int                           unique() const { return unique_; }
+  int                            unique() const { return unique_; }
 
 public:
   static RC create(Db *db, const CreateIndexSqlNode &create_index, Stmt *&stmt);
 
 private:
-  Table                         *table_      = nullptr;
-  std::vector<const FieldMeta *>field_metas_ ;
-  std::string                   index_name_;
-  int                           unique_     = 0;
+  Table                         *table_ = nullptr;
+  std::vector<const FieldMeta *> field_metas_;
+  std::string                    index_name_;
+  int                            unique_ = 0;
+  std::string                    dis_type_;
+  int                            lists_;
+  int                            probes_;
 };

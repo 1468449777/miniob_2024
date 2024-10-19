@@ -35,7 +35,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/group_by_logical_operator.h"
-
+#include "sql/operator/limit_logical_operator.h"
 #include "sql/parser/parse_defs.h"
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/delete_stmt.h"
@@ -207,6 +207,13 @@ RC LogicalPlanGenerator::create_plan(
         std::move(select_stmt->order_by().order_by_attrs), select_stmt->order_by().order_by_types);
     sort_oper->add_child(std::move(*last_oper));
     last_oper = &sort_oper;
+  }
+
+  unique_ptr<LogicalOperator> limit_oper;
+  if (select_stmt->limit() >= 0) {
+    limit_oper = make_unique<LimitLogicalOperator>(std::move(select_stmt->limit()));
+    limit_oper->add_child(std::move(*last_oper));
+    last_oper = &limit_oper;
   }
 
   unique_ptr<LogicalOperator> group_by_oper;
@@ -402,8 +409,7 @@ RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, unique_ptr<Logical
 {
   Table                      *table       = delete_stmt->table();
   FilterStmt                 *filter_stmt = delete_stmt->filter_stmt();
-  unique_ptr<LogicalOperator> table_get_oper(
-      new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+  unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
 
   unique_ptr<LogicalOperator> predicate_oper;
 

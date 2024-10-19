@@ -61,6 +61,7 @@ enum CompOp
   NO_OP
 };
 
+
 /**
  * @brief 描述排序方式
  * @ingroup SQLParser
@@ -82,20 +83,20 @@ struct SelectSqlNode;
  */
 struct ConditionSqlNode
 {
-  int left_is_attr;              ///< TRUE if left-hand side is an attribute
+  int left_is_attr;  ///< TRUE if left-hand side is an attribute
   //                                ///< 1时，操作符左边是属性名，0时，是属性值 , 2时，是子查询
   // Value          left_value;     ///< left-hand side value if left_is_attr = FALSE
   // RelAttrSqlNode left_attr;      ///< left-hand side attribute
   // std::shared_ptr<SelectSqlNode>  left_sub_select;
   std::vector<std::unique_ptr<Expression>> left_expression;
-  CompOp         comp;           ///< comparison operator
-  int            right_is_attr;  ///< TRUE if right-hand side is an attribute
+  CompOp                                   comp;           ///< comparison operator
+  int                                      right_is_attr;  ///< TRUE if right-hand side is an attribute
   //                                ///< 1时，操作符右边是属性名，0时，是属性值
   // RelAttrSqlNode right_attr;     ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
   // Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
   // std::shared_ptr<SelectSqlNode>  right_sub_select;
   std::vector<std::unique_ptr<Expression>> right_expression;
-  int conjunction_type;
+  int                                      conjunction_type;
 };
 
 struct OrderByInfo
@@ -104,9 +105,10 @@ struct OrderByInfo
   std::vector<OrderByType>                 order_by_types;
 };
 
-struct JoinEntry {
-  std::pair<std::string,std::string> join_table;
-  std::vector<ConditionSqlNode> join_conditions;
+struct JoinEntry
+{
+  std::pair<std::string, std::string> join_table;
+  std::vector<ConditionSqlNode>       join_conditions;
   // JoinEntry() : join_table {""}, join_conditions {std::vector<ConditionSqlNode>{}} {}
 };
 /**
@@ -121,15 +123,17 @@ struct JoinEntry {
  */
 
 struct SelectSqlNode
-{ 
-  std::vector<std::pair<std::string,std::string>>                 father_relations;  ///< 用于子查询检查属性的有效性，并不用于真正的查询
-  std::vector<std::unique_ptr<Expression>> expressions;  ///< 查询的表达式
-  std::vector<std::pair<std::string,std::string>>        relations;    ///< 查询的表
-  std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件
-  std::vector<ConditionSqlNode>            group_by_conditions;   ///< 查询条件，使用AND串联起来多个条件
-  std::vector<std::unique_ptr<Expression>> group_by;     ///< group by clause
+{
+  std::vector<std::pair<std::string, std::string>>
+      father_relations;  ///< 用于子查询检查属性的有效性，并不用于真正的查询
+  std::vector<std::unique_ptr<Expression>>         expressions;  ///< 查询的表达式
+  std::vector<std::pair<std::string, std::string>> relations;    ///< 查询的表
+  std::vector<ConditionSqlNode>                    conditions;   ///< 查询条件，使用AND串联起来多个条件
+  std::vector<ConditionSqlNode>            group_by_conditions;  ///< 查询条件，使用AND串联起来多个条件
+  std::vector<std::unique_ptr<Expression>> group_by;             ///< group by clause
   std::vector<JoinEntry>                   join_info;
-  OrderByInfo                              order_by; 
+  OrderByInfo                              order_by;
+  int                                      limit;
 };
 
 /**
@@ -148,8 +152,8 @@ struct CalcSqlNode
  */
 struct InsertSqlNode
 {
-  std::string        relation_name;  ///< Relation to insert into
-  std::vector<unique_ptr<Expression>> values;         ///< 要插入的值  , 一个 Expression 为 一个valueExpr，类型为valuelist
+  std::string                         relation_name;  ///< Relation to insert into
+  std::vector<unique_ptr<Expression>> values;  ///< 要插入的值  , 一个 Expression 为 一个valueExpr，类型为valuelist
 };
 
 /**
@@ -164,9 +168,9 @@ struct DeleteSqlNode
 
 typedef struct
 {
-  int            isvalue;   // 更新的值可能为子查询，现在还不支持
-  std::string    attribute_name;
-  std::unique_ptr<Expression>  expr;
+  int                         isvalue;  // 更新的值可能为子查询，现在还不支持
+  std::string                 attribute_name;
+  std::unique_ptr<Expression> expr;
 } UpdateValueNode;
 
 /**
@@ -175,7 +179,7 @@ typedef struct
  */
 struct UpdateSqlNode
 {
-  std::string                   relation_name;   ///< Relation to update
+  std::string                   relation_name;  ///< Relation to update
   std::vector<UpdateValueNode>  update_values;
   std::vector<ConditionSqlNode> conditions;
 };
@@ -200,8 +204,8 @@ struct AttrInfoSqlNode
  */
 struct CreateTableSqlNode
 {
-  std::string                  relation_name;   ///< Relation name
-  std::vector<AttrInfoSqlNode> attr_infos;      ///< attributes
+  std::string                  relation_name;  ///< Relation name
+  std::vector<AttrInfoSqlNode> attr_infos;     ///< attributes
   std::unique_ptr<Expression>  sub_select;
   std::string                  storage_format;  ///< storage format
 };
@@ -213,8 +217,8 @@ struct CreateTableSqlNode
  */
 struct CreateViewSqlNode
 {
-  std::string                  relation_name;   ///< Relation name
-  std::unique_ptr<Expression>  sub_select;
+  std::string                 relation_name;  ///< Relation name
+  std::unique_ptr<Expression> sub_select;
 };
 
 /**
@@ -234,10 +238,11 @@ struct DropTableSqlNode
  */
 struct CreateIndexSqlNode
 {
-  std::string index_name;                   ///< Index name
-  std::string relation_name;                ///< Relation name
-  std::vector<std::string> attribute_name;  ///< Attribute name
-  int         is_unique;                    ///< Unique
+  std::string                   index_name;      ///< Index name
+  std::string                   relation_name;   ///< Relation name
+  std::vector<std::string>      attribute_name;  ///< Attribute name
+  int                           is_unique;       ///< Unique
+  std::vector<ConditionSqlNode> parameters;      ///< vector索引的参数
 };
 
 /**

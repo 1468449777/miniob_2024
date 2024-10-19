@@ -149,6 +149,11 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
         L2_DISTANCE
         COSINE_DISTANCE
         INNER_PRODUCT
+        WITH
+        LIMIT
+
+        
+        
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -194,6 +199,7 @@ UnboundFunctionExpr *create_function_expression(const char *function_name,
 %type <condition>           condition
 %type <value>               value
 %type <number>              number
+%type <number>              limit_info
 %type <relation>              relation
 %type <string>              as_alias
 %type <const_string>        aggregate_type
@@ -374,6 +380,22 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       free($4);
       free($6);
       free($8);
+    }
+    | CREATE VECTOR_T INDEX ID ON ID LBRACE ID RBRACE WITH LBRACE condition_list RBRACE
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
+      CreateIndexSqlNode &create_index = $$->create_index;
+      create_index.index_name = $4;
+      create_index.relation_name = $6;
+      create_index.is_unique = 0;
+
+      create_index.attribute_name.push_back($8);
+      free($4);
+      free($6);
+      free($8);
+
+      create_index.parameters.swap(*$12);
+      delete $12;
     }
     ;
 
@@ -763,7 +785,7 @@ update_value:
     };
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list from join_list where group_by having_condition order_by_info
+    SELECT expression_list from join_list where group_by having_condition order_by_info limit_info 
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -801,6 +823,8 @@ select_stmt:        /*  select 语句的语法解析树*/
         $$->selection.order_by.order_by_types.swap($8->order_by_types);
         delete $8;
       }
+
+      $$->selection.limit=$9;
 
     }
     ;
@@ -974,6 +998,11 @@ expression:
         //delete $5;
       //}
     }
+    |function_type{
+      $$ = new ValueExpr(Value($1));
+      $$->set_name(token_name(sql_string, &@$));
+      //delete $1;
+    }
     ;
 
 function_type : 
@@ -994,7 +1023,7 @@ function_type :
     }
     | INNER_PRODUCT {
       $$ = "inner_product";
-    }
+      }
     ;
 
 
@@ -1109,6 +1138,11 @@ condition_list:
       $1->conjunction_type = 1;
       $$->push_back(std::move(*$1));
     }
+    | condition COMMA condition_list {       // 用来代替 vector 索引的条件
+      $$ = $3;
+      $1->conjunction_type = 0;
+      $$->push_back(std::move(*$1));
+    }
     ;
 condition:
     expression comp_op expression
@@ -1197,6 +1231,13 @@ order_by_type:
         $$ = DESC_SORT;
       } 
     ;
+
+limit_info:
+   { $$ =-1;
+   }|
+   LIMIT number{
+    $$ = $2;
+   }    
 
 sub_select:
   LBRACE select_stmt RBRACE
