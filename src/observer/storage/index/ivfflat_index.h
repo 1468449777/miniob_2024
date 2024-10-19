@@ -88,7 +88,21 @@ public:
   }
 
   // 找到最近的聚类中心
-  int assign_cluster(const float *vector)
+  int assign_cluster_not_empty(const float *vector,std::unordered_map<int, std::vector<RID>> &inverted_list)
+  {
+    int   closest      = -1;
+    float closest_dist = std::numeric_limits<float>::max();
+    for (size_t i = 0; i < centroids.size(); ++i) {
+      float dist = euclidean_distance(vector, centroids[i].data(), dim_);
+      if (dist < closest_dist && !inverted_list[i].empty()) {
+        closest      = i;
+        closest_dist = dist;
+      }
+    }
+    return closest;
+  }
+
+    int assign_cluster(const float *vector)
   {
     int   closest      = -1;
     float closest_dist = std::numeric_limits<float>::max();
@@ -167,14 +181,14 @@ public:
 
   struct CompareDistanceAndRID {
     bool operator()(const std::pair<float, RID>& lhs, const std::pair<float, RID>& rhs) const {
-        return lhs.first > rhs.first; // 按照距离进行比较，距离小的优先
+        return lhs.first < rhs.first; // 按照距离进行比较，距离小的优先
     }
 };
   // 搜索最近的向量
   std::vector<RID> search(float *query, int limit)
   {
     // 1. 找到最近的聚类中心
-    int cluster_id = kmeans.assign_cluster(query);
+    int cluster_id = kmeans.assign_cluster_not_empty(query,inverted_list);
 
     // 2. 在该聚类内搜索最近的向量
     VacuousTrx       trx;
