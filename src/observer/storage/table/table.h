@@ -96,8 +96,8 @@ public:
   // TODO refactor
   RC create_index(Trx *trx, std::vector<const FieldMeta *> field_meta, const char *index_name, int unique);
 
-  // RC create_index(Trx *trx, std::vector<const FieldMeta *> field_meta, const char *index_name, int unique,
-  //     FunctionExpr::Type dis_type_, int lists_, int probes_);
+  RC create_index(Trx *trx, std::vector<const FieldMeta *> field_meta, const char *index_name, int unique,
+      string dis_type_, int lists_, int probes_);
 
   RC get_record_scanner(RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode);
 

@@ -37,6 +37,9 @@ public:
       : table_(table), mode_(mode), table_alias_(table_alias)
   {
     child_oper_ = table->view()->oper();
+    if(mode_ == ReadWriteMode::READ_ONLY){
+
+    }
   }
 
   virtual ~ViewScanPhysicalOperator() = default;
@@ -58,7 +61,7 @@ private:
 
 private:
   Table                                   *table_ = nullptr;   // 这里的table 是虚拟表
-  [[maybe_unused]] ReadWriteMode           mode_  = ReadWriteMode::READ_WRITE;
+  ReadWriteMode           mode_  = ReadWriteMode::READ_WRITE;
   Record                                   current_record_;
   RowTuple                                 tuple_;
   std::vector<std::unique_ptr<Expression>> predicates_;     // TODO chang predicate to view tuple filter

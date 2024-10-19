@@ -323,7 +323,7 @@ void Value::set_vecs(const char *s)
   std::stringstream ss(s);
   string            temp;
   std::vector<float>  vec_tmp;
-
+  vec_tmp.reserve(800);
   own_data_ = true;
   while (std::getline(ss, temp, ',')) {
     // 将分割后的字符串转换为 int 并放入 vector

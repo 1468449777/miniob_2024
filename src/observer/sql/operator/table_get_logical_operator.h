@@ -13,9 +13,11 @@ See the Mulan PSL v2 for more details. */
 //
 #pragma once
 
+#include "common/value.h"
 #include "sql/operator/logical_operator.h"
 #include "storage/field/field.h"
 #include "common/types.h"
+#include "storage/field/field_meta.h"
 
 /**
  * @brief 表示从表中获取数据的算子
@@ -36,10 +38,19 @@ public:
   void        set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs);
   auto        predicates() -> std::vector<std::unique_ptr<Expression>>        &{ return predicates_; }
   std::string table_alias() { return table_alias_; }
+  void        set_need_vector_index_scan(bool x) { need_vector_index_scan_ = x; }
+  bool        need_vector_index_scan() { return need_vector_index_scan_; }
+  void        set_index_vector(Value &vector) { vector_ = vector; }
+  void        set_index_field(FieldMeta meta) { index_field_meta_ = meta; }
+  Value       vector() { return vector_; }
+  FieldMeta   index_field_meta() { return index_field_meta_; }
 
 private:
   Table        *table_ = nullptr;
   ReadWriteMode mode_  = ReadWriteMode::READ_WRITE;
+  bool          need_vector_index_scan_{false};
+  Value         vector_;
+  FieldMeta     index_field_meta_;
 
   // 与当前表相关的过滤操作，可以尝试在遍历数据时执行
   // 这里的表达式都是比较简单的比较运算，并且左右两边都是取字段表达式或值表达式

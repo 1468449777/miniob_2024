@@ -597,7 +597,7 @@ public:
     // return type;
     return child_[0]->value_type();
   }
-
+  Type func_type(){return type_;}
 public:
   static RC type_from_string(const char *function_name, FunctionExpr::Type &type);
 

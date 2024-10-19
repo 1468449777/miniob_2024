@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include <utility>
 
 #include "common/log/log.h"
+#include "common/value.h"
 #include "sql/expr/expression.h"
 #include "sql/operator/aggregate_vec_physical_operator.h"
 #include "sql/operator/calc_logical_operator.h"
@@ -53,6 +54,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/father_tuple_physical_operator.h"
 #include "sql/operator/group_by_physical_operator.h"
 #include "sql/operator/limit_physical_operator.h"
+#include "sql/operator/vector_index_scan_physical_operator.h"
 using namespace std;
 
 RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<PhysicalOperator> &oper)
@@ -144,6 +146,7 @@ RC PhysicalPlanGenerator::create_vec(LogicalOperator &logical_operator, unique_p
   return rc;
 }
 
+class Value;
 RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, unique_ptr<PhysicalOperator> &oper)
 {
   vector<unique_ptr<Expression>> &predicates = table_get_oper.predicates();
@@ -157,6 +160,20 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
     table_scan_oper->set_predicates(std::move(predicates));
     oper = unique_ptr<PhysicalOperator>(table_scan_oper);
     LOG_TRACE("use table scan");
+    return RC::SUCCESS;
+  }
+
+  if (table_get_oper.need_vector_index_scan()) {
+    Index *index = nullptr;
+    index        = table->find_index_by_field(table_get_oper.index_field_meta().name());
+    if (nullptr == index) {
+      return RC::ERROR;
+    }
+    auto table_scan_oper = new VectorIndexScanPhysicalOperator(
+        table, index, table_get_oper.read_write_mode(), table_get_oper.vector(), table_get_oper.table_alias());
+    table_scan_oper->set_predicates(std::move(predicates));
+    oper = unique_ptr<PhysicalOperator>(table_scan_oper);
+    LOG_TRACE("use vector index scan");
     return RC::SUCCESS;
   }
 

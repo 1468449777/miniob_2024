@@ -10,11 +10,15 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "storage/index/bplus_tree.h"
 #include "storage/index/index.h"
+#include "storage/text/text_manager.h"
 #include <vector>
 #include <cmath>
 #include <limits>
 #include <unordered_map>
+
+class Table;
 
 inline float euclidean_distance(const std::vector<float> &a, const std::vector<float> &b)
 {
@@ -30,7 +34,7 @@ inline float euclidean_distance(const std::vector<float> &a, const std::vector<f
 class KMeans
 {
 public:
-  KMeans();
+  KMeans(){};
   std::vector<std::vector<float>> centroids;  // 聚类中心
 
   // 初始化聚类中心
@@ -83,21 +87,17 @@ public:
   virtual ~IvfflatIndex() noexcept {};
 
   RC create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta *field_metas[],
-      int field_num) override
-  {
-    kmeans.init(index_meta.lists(), field_metas[0]->len() / 4);
-    lists_  = index_meta.lists();
-    probes_ = index_meta.probes();
-    inited_ = true;
-    table_  = table;
-    return RC::SUCCESS;
-  };
+      int field_num) override;
+  
+
   RC open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta *field_metas[],
       int field_num) override
   {
 
     return RC::UNIMPLEMENTED;
   };
+
+  bool is_vector_index() override { return true; }
 
   vector<RID> ann_search(const vector<float> &base_vector, size_t limit) { return vector<RID>(); }
 
@@ -109,7 +109,18 @@ public:
   };
   RC delete_entry(const char *record, const RID *rid) override { return RC::UNIMPLEMENTED; };
 
-  RC sync() override { return RC::UNIMPLEMENTED; };
+  virtual RC update_entry(const char *record, const char *new_record, const RID *rid, int record_null) override
+  {
+    return RC::UNIMPLEMENTED;
+  };
+  RC sync() override { return RC::SUCCESS; };
+
+  IndexScanner *create_scanner(const char *left_key, int left_len, bool left_inclusive, const char *right_key,
+      int right_len, bool right_inclusive) override
+  {
+    return nullptr;
+    ;
+  }
 
 public:
   KMeans                                                   kmeans;         // 用于对数据进行聚类
@@ -142,9 +153,12 @@ public:
   }
 
 private:
-  bool      inited_ = false;
-  Table    *table_  = nullptr;
-  int       lists_  = 1;
-  int       probes_ = 1;
-  IndexMeta index_meta_;
+  // bool      inited_ = false;
+  // Table    *table_  = nullptr;
+  // int       lists_  = 1;
+  // int       probes_ = 1;
+  Table           *table_;
+  IndexMeta        index_meta_;
+  BplusTreeHandler index_handler_;
+  bool             inited_ = false;
 };

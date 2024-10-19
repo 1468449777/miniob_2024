@@ -40,7 +40,13 @@ RC CreateIndexExecutor::execute(SQLStageEvent *sql_event)
   //   return RC::SUCCESS;
   // }
   if (create_index_stmt->dis_type() != "") {
-    return RC::SUCCESS;  // 还没有实现；
+  return  table->create_index(trx,
+        create_index_stmt->field_meta(),
+        create_index_stmt->index_name().c_str(),
+        create_index_stmt->unique(),
+        create_index_stmt->dis_type(),
+        create_index_stmt->lists(),
+        create_index_stmt->probes());
   }
 
   return table->create_index(
