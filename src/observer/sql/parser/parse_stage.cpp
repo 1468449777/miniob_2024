@@ -33,6 +33,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 
   SqlResult         *sql_result = sql_event->session_event()->sql_result();
   const std::string &sql        = sql_event->sql();
+  // std::cout<<sql<<std::endl;
 
   ParsedSqlResult parsed_sql_result;
 
@@ -52,7 +53,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
     // set error information to event
     rc = RC::SQL_SYNTAX;
     sql_result->set_return_code(rc);
-    sql_result->set_state_string("Failed to parse sql");
+    sql_result->set_state_string("Failed to parse sql"+sql);
     return rc;
   }
 

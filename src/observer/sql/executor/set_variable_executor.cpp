@@ -35,7 +35,7 @@ RC SetVariableExecutor::execute(SQLStageEvent *sql_event)
         rc = RC::INVALID_ARGUMENT;
       }
     } else {
-      rc = RC::VARIABLE_NOT_EXISTS;
+      rc = RC::SUCCESS;
     }
 
     return rc;

@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 #include <vector>
 
+#include "common/lang/string.h"
 #include "sql/expr/expression.h"
 #include "sql/parser/parse_defs.h"
 #include "sql/stmt/stmt.h"
@@ -40,11 +41,14 @@ public:
     for (auto &it : parameters) {
       if (strcmp("TYPE", it.left_expression.front()->name()) == 0) {
         // donothing
-      } else if (strcmp("DISTANCE", it.left_expression.front()->name()) == 0) {
+      } else if ("DISTANCE" == (string(it.left_expression.front()->name())) ||
+                 "distance" == (string(it.left_expression.front()->name()))) {
         dis_type_ = it.right_expression.front()->name();
-      } else if (strcmp("LISTS", it.left_expression.front()->name()) == 0) {
+      } else if ("LISTS" == (string(it.left_expression.front()->name())) ||
+                 "lists" == (string(it.left_expression.front()->name()))) {
         lists_ = std::stoi(it.right_expression.front()->name());
-      } else if (strcmp("PROBES", it.left_expression.front()->name()) == 0) {
+      } else if ("PROBES" == (string(it.left_expression.front()->name())) ||
+                 "probes" == (string(it.left_expression.front()->name()))) {
         probes_ = std::stoi(it.right_expression.front()->name());
       }
     }
