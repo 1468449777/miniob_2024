@@ -36,6 +36,8 @@ public:
   IndexMeta() = default;
 
   RC init(const char *name, const FieldMeta *fields[], int field_num, int is_unique);
+  RC init(const char *name, const FieldMeta *fields[], int field_num, int is_unique, string dis_type, int lists,
+      int probes);
 
 public:
   const char                    *name() const;
@@ -44,7 +46,7 @@ public:
   const int                      field_num() const { return field_num_; }
   const int                      unique() const { return unique_; }
   void                           desc(ostream &os) const;
-  const string                   dis_type() const { return dis_type_; }
+  string                   dis_type() const { return dis_type_; }
   const int                      lists() const { return lists_; }
   const int                      probes() const { return probes_; }
 

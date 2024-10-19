@@ -41,9 +41,12 @@ public:
   void        set_need_vector_index_scan(bool x) { need_vector_index_scan_ = x; }
   bool        need_vector_index_scan() { return need_vector_index_scan_; }
   void        set_index_vector(Value &vector) { vector_ = vector; }
+  void        set_limit(int limit) { limit_ = limit; }
   void        set_index_field(FieldMeta meta) { index_field_meta_ = meta; }
-  Value       vector() { return vector_; }
+  Value      &vector() { return vector_; }
+  int         limit() { return limit_; }
   FieldMeta   index_field_meta() { return index_field_meta_; }
+  void        set_order_by(OrderByInfo &&order_by) { order_by_ = std::move(order_by); }
 
 private:
   Table        *table_ = nullptr;
@@ -51,6 +54,7 @@ private:
   bool          need_vector_index_scan_{false};
   Value         vector_;
   FieldMeta     index_field_meta_;
+  int           limit_;
 
   // 与当前表相关的过滤操作，可以尝试在遍历数据时执行
   // 这里的表达式都是比较简单的比较运算，并且左右两边都是取字段表达式或值表达式
@@ -58,4 +62,5 @@ private:
   // 如果有多个表达式，他们的关系都是 AND
   std::vector<std::unique_ptr<Expression>> predicates_;
   std::string                              table_alias_;
+  OrderByInfo                              order_by_;
 };

@@ -172,6 +172,7 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
     auto table_scan_oper = new VectorIndexScanPhysicalOperator(
         table, index, table_get_oper.read_write_mode(), table_get_oper.vector(), table_get_oper.table_alias());
     table_scan_oper->set_predicates(std::move(predicates));
+    table_scan_oper->set_papas(table_get_oper.limit(), table_get_oper.vector());
     oper = unique_ptr<PhysicalOperator>(table_scan_oper);
     LOG_TRACE("use vector index scan");
     return RC::SUCCESS;

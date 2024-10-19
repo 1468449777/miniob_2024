@@ -27,7 +27,8 @@ See the Mulan PSL v2 for more details. */
 class VectorIndexScanPhysicalOperator : public PhysicalOperator
 {
 public:
-  VectorIndexScanPhysicalOperator(Table *table, Index *index, ReadWriteMode mode,  Value index_vector, std::string table_alias);
+  VectorIndexScanPhysicalOperator(
+      Table *table, Index *index, ReadWriteMode mode, Value index_vector, std::string table_alias);
 
   virtual ~VectorIndexScanPhysicalOperator() = default;
 
@@ -43,17 +44,23 @@ public:
 
   void set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs);
 
+  void set_papas(int limit, Value vector)
+  {
+    limit_  = limit;
+    vector_ = vector;
+  }
+
 private:
   // 与TableScanPhysicalOperator代码相同，可以优化
   RC filter(RowTuple &tuple, bool &result);
 
 private:
-  Trx               *trx_                  = nullptr;
-  Table             *table_                = nullptr;
-  Index             *index_                = nullptr;
-  ReadWriteMode      mode_                 = ReadWriteMode::READ_WRITE;
-  IndexScanner      *vector_index_scanner_ = nullptr;
-  RecordFileHandler *record_handler_       = nullptr;
+  Trx               *trx_            = nullptr;
+  Table             *table_          = nullptr;
+  Index             *index_          = nullptr;
+  ReadWriteMode      mode_           = ReadWriteMode::READ_WRITE;
+  IndexScanner      *index_scanner_  = nullptr;
+  RecordFileHandler *record_handler_ = nullptr;
   RecordFileScanner  record_scanner_;
   Record             current_record_;
   RowTuple           tuple_;
@@ -64,6 +71,6 @@ private:
 
   string table_alias_;
 
-
+  int   limit_;
   Value vector_;  // 常量向量
 };

@@ -884,7 +884,7 @@ RC Table::create_index(Trx *trx, vector<const FieldMeta *> field_meta, const cha
 
   IndexMeta new_index_meta;
 
-  RC rc = new_index_meta.init(index_name, field_metas, attr_num, unique);
+  RC rc = new_index_meta.init(index_name, field_metas, attr_num, unique,dis_type_,lists_,probes_);
   if (rc != RC::SUCCESS) {
     LOG_INFO("Failed to init IndexMeta in table:%s, index_name:%s, field_name:%s", 
              name(), index_name, field_metas[0]->name());
@@ -901,39 +901,39 @@ RC Table::create_index(Trx *trx, vector<const FieldMeta *> field_meta, const cha
     return rc;
   }
 
-  // 遍历当前的所有数据，插入这个索引
-  // RecordFileScanner scanner;
-  // rc = get_record_scanner(scanner, trx, ReadWriteMode::READ_ONLY);
-  // if (rc != RC::SUCCESS) {
-  //   LOG_WARN("failed to create scanner while creating index. table=%s, index=%s, rc=%s", 
-  //            name(), index_name, strrc(rc));
-  //   return rc;
-  // }
+  //遍历当前的所有数据，插入这个索引
+  RecordFileScanner scanner;
+  rc = get_record_scanner(scanner, trx, ReadWriteMode::READ_ONLY);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create scanner while creating index. table=%s, index=%s, rc=%s", 
+             name(), index_name, strrc(rc));
+    return rc;
+  }
 
-  // Record record;
-  // while (OB_SUCC(rc = scanner.next(record))) {
-  //   int field_indexes[20];
-  //   for (int i = 0; i < index->field_metas().size(); i++) {
-  //     const int field_index = this->table_meta().find_field_index_by_name(index->field_metas()[i].name()) -
-  //                             this->table_meta().sys_field_num();
-  //     field_indexes[i] = field_index;
-  //   }
-  //   rc = index->insert_entry(record, &record.rid(), table_meta_.record_size(), field_indexes);
-  //   if (rc != RC::SUCCESS) {
-  //     LOG_WARN("failed to insert record into index while creating index. table=%s, index=%s, rc=%s",
-  //              name(), index_name, strrc(rc));
-  //     return rc;
-  //   }
-  // }
-  // if (RC::RECORD_EOF == rc) {
-  //   rc = RC::SUCCESS;
-  // } else {
-  //   LOG_WARN("failed to insert record into index while creating index. table=%s, index=%s, rc=%s",
-  //            name(), index_name, strrc(rc));
-  //   return rc;
-  // }
-  // scanner.close_scan();
-  // LOG_INFO("inserted all records into new index. table=%s, index=%s", name(), index_name);
+  Record record;
+  while (OB_SUCC(rc = scanner.next(record))) {
+    int field_indexes[20];
+    for (int i = 0; i < index->field_metas().size(); i++) {
+      const int field_index = this->table_meta().find_field_index_by_name(index->field_metas()[i].name()) -
+                              this->table_meta().sys_field_num();
+      field_indexes[i] = field_index;
+    }
+    rc = index->insert_entry(record, &record.rid(), table_meta_.record_size(), field_indexes);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to insert record into index while creating index. table=%s, index=%s, rc=%s",
+               name(), index_name, strrc(rc));
+      return rc;
+    }
+  }
+  if (RC::RECORD_EOF == rc) {
+    rc = RC::SUCCESS;
+  } else {
+    LOG_WARN("failed to insert record into index while creating index. table=%s, index=%s, rc=%s",
+             name(), index_name, strrc(rc));
+    return rc;
+  }
+  scanner.close_scan();
+  LOG_INFO("inserted all records into new index. table=%s, index=%s", name(), index_name);
 
   indexes_.push_back(index);
 
