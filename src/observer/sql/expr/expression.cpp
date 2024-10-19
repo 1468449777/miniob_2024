@@ -17,14 +17,17 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include "common/value.h"
 #include "sql/expr/aggregator.h"
+#include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
 #include "sql/expr/arithmetic_operator.hpp"
 #include "sql/operator/logical_operator.h"
 #include "sql/optimizer/logical_plan_generator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/parser/parse_defs.h"
+#include "sql/parser/yacc_sql.hpp"
 #include <cstdint>
 #include <iomanip>
+#include <math.h>
 #include <memory>
 #include <vector>
 #include <cmath>
@@ -738,7 +741,17 @@ RC FunctionExpr::type_from_string(const char *function_name, FunctionExpr::Type 
     }
     else if (0 == strcasecmp(function_name, "date_format")) {
       type = FunctionExpr::Type::DATE_FORMAT;
-    } else {
+    }
+    else if (0 == strcasecmp(function_name, "l2_distance")) {
+      type = FunctionExpr::Type::L2_DISTANCE;
+    }
+    else if (0 == strcasecmp(function_name, "cosine_distance")) {
+      type = FunctionExpr::Type::COSINE_DISTANCE;
+    }
+    else if (0 == strcasecmp(function_name, "inner_product")) {
+      type = FunctionExpr::Type::INNER_PRODUCT;
+    }
+    else {
       rc = RC::INVALID_ARGUMENT;
     }
     return rc;
@@ -855,10 +868,79 @@ RC FunctionExpr::execute(const vector<Value> &values, Value &value) const {
       value = values[0];
       value.set_date_format(values[1].get_string());
     } break;
+    case Type::L2_DISTANCE:
+    case Type::COSINE_DISTANCE:
+    case Type::INNER_PRODUCT: 
+    {
+      if (values.size() != 2) {
+        rc = RC::ERROR;
+      }
+      else {
+        rc = execute_vec(values[0], values[1], value);
+      }
+    } break;
     default:
       rc = RC::ERROR;
       break;
   }
   // value = res;
+  return rc;
+}
+
+RC FunctionExpr::execute_vec(const Value &left, const Value &right, Value &value) const {
+  RC rc = RC::SUCCESS;
+  if (left.attr_type() != AttrType::VECTORS || right.attr_type() != AttrType::VECTORS) {
+    rc = RC::ERROR;
+    return rc;
+  }
+
+  vector<float> v1;
+  vector<float> v2;
+  for (int i = 0; i < left.length() / 4; i++) {
+    v1.push_back(left.get_vectors()[i]);
+  }
+  for (int i = 0 ; i < right.length() / 4; i++) {
+    v2.push_back(right.get_vectors()[i]);
+  }
+  
+  if (v1.size() != v2.size()) {
+    rc = RC::ERROR;
+    return rc;
+  }
+
+  float f_result = 0.0;
+
+  switch (type_) {
+    case Type::L2_DISTANCE: {
+      for (int i = 0; i < v1.size(); i++) {
+        f_result += (v1[i] - v2[i]) * (v1[i] - v2[i]);
+      }
+      f_result = sqrtf(f_result);
+    } break;
+    case Type::COSINE_DISTANCE: {
+      float inner_p = 0.0;
+      float mod_1 = 0.0;
+      float mod_2 = 0.0;
+      for (int i = 0; i < v1.size(); i++) {
+        inner_p += v1[i] * v2[i];
+        mod_1 += v1[i] * v1[i];
+        mod_2 += v2[i] * v2[i];
+      }
+      mod_1 = sqrtf(mod_1);
+      mod_2 = sqrtf(mod_2);
+      f_result = (inner_p / (mod_1 * mod_2));
+    } break;
+    case Type::INNER_PRODUCT: {
+      for (int i = 0; i < v1.size(); i++) {
+        f_result += v1[i] * v2[i];
+      }
+    } break;
+    default:
+      rc = RC::ERROR;
+      break;
+  }
+  f_result = round(f_result * 100) / 100;
+  value = Value(f_result);
+  value.set_type(AttrType::FLOATS);
   return rc;
 }

@@ -554,6 +554,9 @@ public:
     LENGTH,
     ROUND,
     DATE_FORMAT,
+    L2_DISTANCE,
+    COSINE_DISTANCE,
+    INNER_PRODUCT,
   };
 
   FunctionExpr(Type type, vector<unique_ptr<Expression>> &child) : type_(type), child_(std::move(child)) {}
@@ -600,6 +603,7 @@ public:
 
 private:
   RC execute(const vector<Value> &values, Value &value) const;
+  RC execute_vec(const Value &left, const Value &right, Value &result) const;
 
 private:
   Type                           type_;
