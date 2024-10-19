@@ -70,7 +70,7 @@ public:
     // 简单初始化：随机设定一些聚类中心（可以使用更好的方法）
     for (int i = 0; i < num_clusters; ++i) {
       for (int j = 0; j < dim; ++j) {
-        centroids[i][j] = static_cast<float>(rand() * 300);
+        centroids[i][j] = static_cast<float>((float)rand()/(float)RAND_MAX * 300);
       }
     }
   }
@@ -81,7 +81,7 @@ public:
     // 简单初始化：随机设定一些聚类中心（可以使用更好的方法）
     for (int i = 0; i < num_clusters; ++i) {
       for (int j = 0; j < dim; ++j) {
-        centroids[i][j] = static_cast<float>(rand() * 300);
+        centroids[i][j] = static_cast<float>((float)rand()/(float)RAND_MAX * 300);
       }
     }
     dim_ = dim;
