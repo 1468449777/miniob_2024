@@ -61,6 +61,14 @@ RC TableMeta::init(int32_t table_id, const char *name, const std::vector<FieldMe
 
   RC rc = RC::SUCCESS;
 
+  for (const auto &attr : attributes) {
+    if (attr.type == AttrType::HIGH_VECTORS) {
+      if (attr.length > MAX_VECTOR_DIM * 4) {
+        rc = RC::ERROR;
+        return rc;
+      }
+    }
+  }
   int field_offset  = 0;
   int trx_field_num = 0;
 

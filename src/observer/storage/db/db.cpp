@@ -154,7 +154,7 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
   int32_t table_id        = next_table_id_++;
   rc = table->create(this, table_id, table_file_path.c_str(), table_name, path_.c_str(), attributes, storage_format);
   if (rc != RC::SUCCESS) {
-    LOG_ERROR("Failed to create table %s.", table_name);
+    // LOG_ERROR("Failed to create table %s.", table_name);
     delete table;
     return rc;
   }

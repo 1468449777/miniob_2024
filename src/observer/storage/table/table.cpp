@@ -98,7 +98,8 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   // 创建文件
   const vector<FieldMeta> *trx_fields = db->trx_kit().trx_fields();
   if ((rc = table_meta_.init(table_id, name, trx_fields, attributes, storage_format)) != RC::SUCCESS) {
-    LOG_ERROR("Failed to init table meta. name:%s, ret:%d", name, rc);
+    // LOG_ERROR("Failed to init table meta. name:%s, ret:%d", name, rc);
+    std::remove(path);
     return rc;  // delete table file
   }
 
