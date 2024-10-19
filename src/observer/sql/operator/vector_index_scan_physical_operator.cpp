@@ -52,7 +52,7 @@ RC VectorIndexScanPhysicalOperator::open(Trx *trx)
 
 RC VectorIndexScanPhysicalOperator::next()
 {
-   RID rid;
+  RID rid;
   RC  rc = RC::SUCCESS;
 
   bool filter_result = false;
@@ -103,16 +103,16 @@ RC VectorIndexScanPhysicalOperator::close()
 
 Tuple *VectorIndexScanPhysicalOperator::current_tuple()
 {
-  Record   *copied_record = new Record(current_record_);
-  RowTuple *tuple         = new RowTuple();
-  copied_tuples_.push_back(tuple);
+  // Record   *copied_record = new Record(current_record_);
+  // RowTuple *tuple         = new RowTuple();
+  // copied_tuples_.push_back(tuple);
 
-  // owner为true，copy了一份
-  copied_record->copy_data(current_record_.data(), current_record_.len());
+  // // owner为true，copy了一份
+  // copied_record->copy_data(current_record_.data(), current_record_.len());
 
-  tuple->set_record(copied_record);
-  tuple->set_schema(table_, table_->table_meta().field_metas(), table_alias_);
-  return tuple;
+  tuple_.set_record(&current_record_);
+  // tuple->set_schema(table_, table_->table_meta().field_metas(), table_alias_);
+  return &tuple_;
 }
 
 void VectorIndexScanPhysicalOperator::set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs)

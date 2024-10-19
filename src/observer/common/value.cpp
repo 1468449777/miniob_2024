@@ -316,23 +316,36 @@ void Value::set_date(const char *s)
   length_           = 4;
 }
 
-void Value::set_vecs(const char *s)
-{
-  reset();
-  attr_type_ = AttrType::VECTORS;
-  std::stringstream ss(s);
-  string            temp;
-  std::vector<float>  vec_tmp;
-  vec_tmp.reserve(800);
-  own_data_ = true;
-  while (std::getline(ss, temp, ',')) {
-    // 将分割后的字符串转换为 int 并放入 vector
-    vec_tmp.push_back(std::stof(temp));
-  }
-  length_        = vec_tmp.size() * 4;
-  value_.vectors = new char[vec_tmp.size() * sizeof(float)];
-  // 使用 memcpy 将 vec 的数据拷贝到 int* 数组中
-  std::memcpy(value_.vectors, vec_tmp.data(), vec_tmp.size() * sizeof(float));
+void Value::set_vecs(const char *s) {
+    reset();
+    attr_type_ = AttrType::VECTORS;
+
+    // 计算字符串中的向量个数
+    int count = 0;
+    for (const char *ptr = s; *ptr; ++ptr) {
+        if (*ptr == ',') count++;
+    }
+    count++; // 最后一个数之后没有逗号，需加一
+
+    // 预分配内存
+    length_ = count * sizeof(float);
+    value_.vectors = new char[length_];
+
+    // 使用一个指向 char 的指针来填充内存
+    float *vec_ptr = reinterpret_cast<float *>(value_.vectors);
+    
+    // 使用 std::strtok 来分割字符串
+    char *s_copy = strdup(s); // 创建一个可修改的副本
+    char *token = std::strtok(s_copy, ",");
+    int index = 0;
+
+    while (token != nullptr) {
+        vec_ptr[index++] = std::stof(token); // 转换为 float
+        token = std::strtok(nullptr, ","); // 获取下一个分割的字符串
+    }
+
+    free(s_copy); // 释放复制的字符串内存
+    own_data_ = true;
 }
 
 void Value::set_vecs(vector<float> &vec_tmp)
