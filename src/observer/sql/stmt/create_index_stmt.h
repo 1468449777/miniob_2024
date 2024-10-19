@@ -58,6 +58,9 @@ public:
   std::vector<const FieldMeta *> field_meta() const { return field_metas_; }
   const std::string             &index_name() const { return index_name_; }
   int                            unique() const { return unique_; }
+  string                         dis_type() { return dis_type_; }
+  int                            lists() { return lists_; }
+  int                            probes() { return probes_; }
 
 public:
   static RC create(Db *db, const CreateIndexSqlNode &create_index, Stmt *&stmt);
