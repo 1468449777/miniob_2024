@@ -774,7 +774,7 @@ RC FunctionExpr::get_value(const Tuple &tuple, Value &value) const{
   args.emplace_back(tmp_value);
   if (child_.size() > 1) {
     for (int i = 1; i < child_.size(); i++) {
-      rc = child_[i]->try_get_value(tmp_value);
+      rc = child_[i]->get_value(tuple,tmp_value);
       if (OB_FAIL(rc)) {
         return rc;
       }
