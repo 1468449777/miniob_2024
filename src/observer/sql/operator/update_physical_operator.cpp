@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/update_physical_operator.h"
 #include "common/log/log.h"
+#include "common/rc.h"
 #include "common/type/attr_type.h"
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
@@ -21,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/physical_operator.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
+#include "storage/text/text_manager.h"
 #include "storage/view/view.h"
 #include "storage/trx/trx.h"
 #include <cstring>
@@ -115,10 +117,41 @@ RC UpdatePhysicalOperator::open(Trx *trx)
             rc = RC::ERROR;
             break;
           }
-          table_->text_file_handler()->update_text(origin_page_num, n_str, new_page_num);
+          table_->text_file_handler()->update_text(origin_page_num, n_str.c_str(), n_str.length(), new_page_num);
           memcpy(new_record_data + it.first->offset(), &new_page_num, copy_len);
         }
         memcpy(new_record_data + record.len() - it.first->field_id() - 1, &value_is_null, 1);  // 修改null标记位
+      }
+      else if (it.first->type() == AttrType::HIGH_VECTORS) {
+        int copy_len = it.first->len();
+        bool value_is_null = it.second.is_null();
+        if (value_is_null) {
+          int tmp_invalid_page = -1;
+          memcpy(new_record_data + it.first->offset(), &(tmp_invalid_page), copy_len);
+        }
+        else {
+          if (it.second.attr_type() != AttrType::VECTORS) {
+            rc = RC::ERROR;
+            break;
+          }
+          PageNum origin_page_num = *(int*)(record.data() + it.first->offset());
+          PageNum new_page_num;
+          const char *data = it.second.data();
+          int total_len = it.second.length();
+          if (total_len > MAX_VECTOR_DIM * 4) {
+            rc = RC::ERROR;
+            break;
+          }
+          if (total_len != it.first->real_len()) {
+            rc = RC::ERROR;
+            break;
+          }
+          rc = table_->vector_handler()->update_text(origin_page_num, data, total_len, new_page_num);
+          if (OB_FAIL(rc)) {
+            break;
+          }
+          memcpy(new_record_data + it.first->offset(), &new_page_num, copy_len);
+        } 
       }
       else {
         int copy_len = it.second.length();

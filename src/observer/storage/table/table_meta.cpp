@@ -87,19 +87,35 @@ RC TableMeta::init(int32_t table_id, const char *name, const std::vector<FieldMe
   for (size_t i = 0; i < attributes.size(); i++) {
     const AttrInfoSqlNode &attr_info = attributes[i];
     // `i` is the col_id of fields[i]
-    rc = fields_[i + trx_field_num].init(attr_info.name.c_str(),
+    if (attr_info.type != AttrType::HIGH_VECTORS) {
+      rc = fields_[i + trx_field_num].init(attr_info.name.c_str(),
+          attr_info.type,
+          field_offset,
+          attr_info.length,
+          true /*visible*/,
+          i,
+          attr_info.can_be_null);
+    } else {
+      rc = fields_[i + trx_field_num].init(attr_info.name.c_str(),
         attr_info.type,
         field_offset,
-        attr_info.length,
+        4,
         true /*visible*/,
         i,
-        attr_info.can_be_null);
+        attr_info.can_be_null,
+        attr_info.length);
+    }
     if (OB_FAIL(rc)) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name.c_str());
       return rc;
     }
 
-    field_offset += attr_info.length;
+    if (attr_info.type != AttrType::HIGH_VECTORS) {
+      field_offset += attr_info.length;
+    }
+    else {
+      field_offset += 4;
+    }
   }
 
   // record 记录增加，用于记录每个列是否为null，0代表非null

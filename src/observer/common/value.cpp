@@ -60,6 +60,7 @@ Value::Value(const Value &other)
   this->attr_type_         = other.attr_type_;
   this->length_            = other.length_;
   this->text_file_handler_ = other.text_file_handler_;
+  this->vector_handler_ = other.vector_handler_;
 
   switch (this->attr_type_) {
     case AttrType::CHARS: {
@@ -98,6 +99,8 @@ Value::Value(Value &&other)
   this->date_formmat_s_    = other.date_formmat_s_;
   this->text_file_handler_ = other.text_file_handler_;
   other.text_file_handler_ = nullptr;
+  this->vector_handler_ = other.vector_handler_;
+  other.vector_handler_ = nullptr;
   other.date_formmat_s_.clear();
   other.own_data_ = false;
   other.length_   = 0;
@@ -112,6 +115,7 @@ Value &Value::operator=(const Value &other)
   this->attr_type_         = other.attr_type_;
   this->length_            = other.length_;
   this->text_file_handler_ = other.text_file_handler_;
+  this->vector_handler_ = other.vector_handler_;
 
   switch (this->attr_type_) {
     case AttrType::CHARS: {
@@ -154,6 +158,8 @@ Value &Value::operator=(Value &&other)
   this->value_             = other.value_;
   this->text_file_handler_ = other.text_file_handler_;
   other.text_file_handler_ = nullptr;
+  this->vector_handler_ = other.vector_handler_;
+  other.vector_handler_ = nullptr;
   other.own_data_          = false;
   this->date_formmat_s_    = other.date_formmat_s_;
   other.date_formmat_s_.clear();
@@ -188,6 +194,8 @@ void Value::reset()
     default: break;
   }
 
+  text_file_handler_ = nullptr;
+  vector_handler_ = nullptr;
   attr_type_ = AttrType::UNDEFINED;
   length_    = 0;
   own_data_  = false;
@@ -218,6 +226,10 @@ void Value::set_data(char *data, int length)
     case AttrType::TEXTS: {
       value_.int_value_ = *(int *)data;
       length_           = length;
+    } break;
+    case AttrType::HIGH_VECTORS: {
+      value_.int_value_ = *(int*)data;
+      length_ = length;
     } break;
 
     // 这里默认已经Value已经调用过 set_valuelist() 函数
@@ -384,7 +396,10 @@ void Value::set_value(const Value &value)
     } break;
     case AttrType::TEXTS: {
       set_int(value.get_int());
-    }
+    } break;
+    case AttrType::HIGH_VECTORS: {
+      set_int(value.get_int());
+    } break;
     default: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -459,6 +474,9 @@ int Value::get_int() const
       return (int)(value_.bool_value_);
     }
     case AttrType::TEXTS: {
+      return value_.int_value_;
+    }
+    case AttrType::HIGH_VECTORS: {
       return value_.int_value_;
     }
     case AttrType::NULLS: {

@@ -47,6 +47,7 @@ public:
   friend class TextType;
   friend class ValuesType;
   friend class VectorType;
+  friend class HighVectorType;
 
   Value() = default;
 
@@ -106,6 +107,7 @@ public:
   void set_valuelist();
   void set_date_format(const string &format) { date_formmat_s_ = format; }
   void set_text_file_handler(TextFileHandler *text_file_handler);
+  void set_vector_handler(TextFileHandler *vector_handler) { vector_handler_ = vector_handler; }
 
   string to_string() const;
 
@@ -136,6 +138,8 @@ public:
   std::vector<int>   *get_vector();
   TextFileHandler    *get_text_file_handler();
   TextFileHandler    *get_text_file_handler() const;
+  TextFileHandler    *get_vector_handler() { return vector_handler_; }
+  TextFileHandler    *get_vector_handler() const { return vector_handler_; }
   float                *get_vectors() const { return (float *)value_.vectors; }
 
 private:
@@ -163,6 +167,7 @@ private:
   } value_ = {.int_value_ = 0};
 
   TextFileHandler *text_file_handler_ = nullptr;
+  TextFileHandler *vector_handler_ = nullptr;
   std::string      date_formmat_s_;
   /// 是否申请并占有内存, 目前对于 CHARS 类型 own_data_ 为true, 其余类型 own_data_ 为false
   bool own_data_ = false;

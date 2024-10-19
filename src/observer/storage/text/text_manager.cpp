@@ -53,12 +53,11 @@ RC TextFileHandler::get_text(PageNum page_num, string &res) {
     return rc;
   }
 
-RC TextFileHandler::write_text(const std::string &text, PageNum &page_num) {
+RC TextFileHandler::write_text(const char *text, int total_len, PageNum &page_num) {
   std::scoped_lock lock(file_mutex_); // 一把大锁
   RC rc = RC::SUCCESS;
 
   int len = 0;
-  int total_len = text.length();
 
   Frame *prev_frame  = nullptr;
   Frame *cur_frame   = nullptr;
@@ -84,7 +83,7 @@ RC TextFileHandler::write_text(const std::string &text, PageNum &page_num) {
     text_header->next_page_num = -1;
     text_header->length = write_len;
 
-    memcpy(text_data, text.c_str() + len, write_len);
+    memcpy(text_data, text + len, write_len);
 
     len += write_len;
     if (prev_frame == nullptr) {
@@ -193,7 +192,7 @@ RC TextFileHandler::delete_text(PageNum page_num) {
   return rc;
 }
 
-RC TextFileHandler::update_text(PageNum in_page, const string &text, PageNum &out_page) {
+RC TextFileHandler::update_text(PageNum in_page, const char *text, int total_len, PageNum &out_page) {
   RC rc = RC::SUCCESS;
 
   // 偷懒，先删再建立
@@ -203,7 +202,7 @@ RC TextFileHandler::update_text(PageNum in_page, const string &text, PageNum &ou
     return rc;
   }
 
-  rc = write_text(text, out_page);
+  rc = write_text(text, total_len, out_page);
   if (OB_FAIL(rc)) {
     LOG_ERROR("zrk, update_text, failed in WRITE part.");
     return rc;

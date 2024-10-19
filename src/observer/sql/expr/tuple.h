@@ -230,6 +230,9 @@ public:
       if (field_meta->type() == AttrType::TEXTS) {
         cell.set_text_file_handler(table_->text_file_handler());
       }
+      if (field_meta->type() == AttrType::HIGH_VECTORS) {
+        cell.set_vector_handler(table_->vector_handler());
+      }
     }
 
     return RC::SUCCESS;

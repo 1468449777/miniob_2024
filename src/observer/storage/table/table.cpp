@@ -149,6 +149,26 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
       return rc;
     }
   }
+
+  // high vector, 偷懒，采取的与text同样的逻辑
+  bool vector_flag = (std::find_if(attributes.begin(), attributes.end(), [&](const AttrInfoSqlNode &attr) {
+    return attr.type == AttrType::HIGH_VECTORS;
+  }) != attributes.end());
+
+  if (vector_flag) {
+    std::string vector_file = table_vector_file(base_dir, name);
+    rc                    = db->buffer_pool_manager().create_file(vector_file.c_str());
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to create vector file.");
+      return rc;
+    }
+    rc = init_vector_handler(base_dir);
+    if (OB_FAIL(rc)) {
+      LOG_ERROR("Failed to init vector file handler.");
+      return rc;
+    }
+  }
+
   // create a text handler to handle the text file
   LOG_INFO("Successfully create table %s:%s", base_dir, name);
   return rc;
@@ -184,6 +204,10 @@ RC Table::drop()
   // 删除text文件
   bpm.close_file(table_text_file(base_dir_.c_str(), table_meta_.name()).c_str());
   std::remove(table_text_file(base_dir_.c_str(), table_meta_.name()).c_str());
+
+  // 删除vector文件
+  bpm.close_file(table_vector_file(base_dir_.c_str(), table_meta_.name()).c_str());
+  std::remove(table_vector_file(base_dir_.c_str(), table_meta_.name()).c_str());
   LOG_INFO("Successfully drop table %s", base_dir_.c_str());
   return rc;
 }
@@ -223,6 +247,12 @@ RC Table::open(Db *db, const char *meta_file, const char *base_dir)
   rc = init_text_handler(base_dir);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to open table %s due to init text handler.", base_dir);
+    return rc;
+  }
+
+  rc = init_vector_handler(base_dir);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to open table %s due to init vector handler.", base_dir);
     return rc;
   }
 
@@ -379,13 +409,37 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
           break;
         }
         PageNum page_num;
-        rc = text_file_handler_->write_text(text_str, page_num);
+        rc = text_file_handler_->write_text(text_str.c_str(), text_str.length(), page_num);
         if (OB_FAIL(rc)) {
           LOG_ERROR("Failed to write text data to frame/file.");
           break;
         }
         Value real_value(page_num);
         rc = set_value_to_record(record_data, real_value, field, record_size);
+      } else if (field->type() == AttrType::HIGH_VECTORS) {
+        if (value.attr_type() != AttrType::VECTORS) {
+          rc = RC::ERROR;
+          break;
+        }
+        const char *data = value.data();
+        const int total_len = value.length();
+        if (total_len > MAX_VECTOR_DIM * 4) {
+          rc = RC::ERROR;
+          break;
+        }
+        if (total_len != field->real_len()) {
+          rc = RC::ERROR;
+          break;
+        }
+        ASSERT(vector_handler_ != nullptr, "there is no vector file.");
+        
+        PageNum vector_page_num = -1;
+        rc = vector_handler_->write_text(data, total_len, vector_page_num);
+        if (OB_FAIL(rc)) {
+          LOG_ERROR("Fail to write vector.");
+          break;
+        }
+        rc = set_value_to_record(record_data, Value(vector_page_num), field, record_size);
       } else {
         Value real_value;
         rc = Value::cast_to(value, field->type(), real_value);
@@ -481,6 +535,24 @@ RC Table::init_text_handler(const char *base_dir)
   }
 
   text_file_handler_ = new TextFileHandler(*text_buffer_pool_);
+  return rc;
+}
+
+RC Table::init_vector_handler(const char *base_dir) {
+  RC     rc        = RC::SUCCESS;
+  string vector_file = table_vector_file(base_dir, table_meta_.name());
+  if (!std::filesystem::exists(std::filesystem::path(vector_file))) {
+    return rc;
+  }
+
+  auto &bpm = db_->buffer_pool_manager();
+  rc        = bpm.open_file(db_->log_handler(), vector_file.c_str(), vector_buffer_pool_);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to open text file.");
+    return rc;
+  }
+
+  vector_handler_ = new TextFileHandler(*vector_buffer_pool_);
   return rc;
 }
 

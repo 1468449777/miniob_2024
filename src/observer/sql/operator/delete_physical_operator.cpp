@@ -36,6 +36,9 @@ RC DeletePhysicalOperator::open(Trx *trx)
   // collect text page
   std::vector<PageNum> pages;
   
+  // collect vector page;
+  std::vector<PageNum> vector_pages;
+
   while (OB_SUCC(rc = child->next())) {
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
@@ -53,6 +56,10 @@ RC DeletePhysicalOperator::open(Trx *trx)
       }
       if (cur_value.attr_type() == AttrType::TEXTS) {
         pages.emplace_back(cur_value.get_int());
+      }
+
+      if (cur_value.attr_type() == AttrType::HIGH_VECTORS) {
+        vector_pages.emplace_back(cur_value.get_int());
       }
     }
     Record   &record    = row_tuple->record();
@@ -74,6 +81,13 @@ RC DeletePhysicalOperator::open(Trx *trx)
   // 删除text文件中与的相关条目
   for (PageNum page : pages) {
     rc = table_->text_file_handler()->delete_text(page);
+    if (OB_FAIL(rc)) {
+      return rc;
+    }
+  }
+
+  for (PageNum page : vector_pages) {
+    rc = table_->vector_handler()->delete_text(page);
     if (OB_FAIL(rc)) {
       return rc;
     }

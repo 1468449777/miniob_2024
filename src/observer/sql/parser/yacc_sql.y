@@ -486,7 +486,13 @@ attr_def:
       $$->type = (AttrType)$2;
       $$->name = $1; 
       if((AttrType)$2 == AttrType::VECTORS){
+        if ($4 <= 1000) {
           $$->length = $4 * 4; 
+        }
+        else {
+          $$->type = AttrType::HIGH_VECTORS;
+          $$->length = $4 * 4;
+        }
       }else{
           $$->length = $4;
       }

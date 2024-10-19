@@ -101,6 +101,8 @@ public:
   RecordFileHandler *record_handler() const { return record_handler_; }
 
   TextFileHandler *text_file_handler() const { return text_file_handler_; }
+
+  TextFileHandler *vector_handler() const { return vector_handler_; }
   /**
    * @brief 可以在页面锁保护的情况下访问记录
    * @details 当前是在事务中访问记录，为了提供一个“原子性”的访问模式
@@ -131,6 +133,7 @@ private:
 private:
   RC init_record_handler(const char *base_dir);
   RC init_text_handler(const char *base_dir);
+  RC init_vector_handler(const char *base_dir);
 
 public:
   Index *find_index(const char *index_name) const;
@@ -148,6 +151,8 @@ private:
   RecordFileHandler *record_handler_   = nullptr;  /// 记录操作
   TextFileHandler   *text_file_handler_ = nullptr;
   DiskBufferPool    *text_buffer_pool_ = nullptr;
+  TextFileHandler   *vector_handler_   = nullptr;
+  DiskBufferPool    *vector_buffer_pool_ = nullptr;
   vector<Index *>    indexes_;
   View              *view_ = nullptr;  // 因为sql执行过程中，都是以table的形式查询，所以将View封装为一个虚拟表，由table对外提供接口
 };

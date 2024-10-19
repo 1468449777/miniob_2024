@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/null_type.h"
 #include "common/type/text_type.h"
 #include "common/type/values_type.h"
+#include "common/type/high_vector_type.h"
 #include <memory>
 array<unique_ptr<DataType>, static_cast<int>(AttrType::MAXTYPE)> DataType::type_instances_ = {
     make_unique<DataType>(AttrType::UNDEFINED),
@@ -28,5 +29,6 @@ array<unique_ptr<DataType>, static_cast<int>(AttrType::MAXTYPE)> DataType::type_
     make_unique<DateType>(),
     make_unique<NullType>(),
     make_unique<TextType>(),
+    make_unique<HighVectorType>(),
     make_unique<ValuesType>(),
 };

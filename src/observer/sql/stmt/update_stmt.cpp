@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
 #include "storage/field/field_meta.h"
+#include "storage/text/text_manager.h"
 #include <memory>
 #include <utility>
 
@@ -133,7 +134,18 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
           }
         }
       }
-
+      else if (updatingfieldMeta->type() == AttrType::HIGH_VECTORS) {
+        if (result_value.attr_type() != AttrType::VECTORS) {
+          rc = RC::ERROR;
+          return rc;
+        }
+        else {
+          if (result_value.length() != updatingfieldMeta->real_len() || result_value.length() > MAX_VECTOR_DIM * 4) {
+            rc = RC::ERROR;
+            return rc;
+          }
+        }
+      }
       // cast 操作目前未实现，后续根据需要进行补充，这里的update 的逻辑已经完善了
       else if (OB_FAIL(result_value.cast_to(result_value, updatingfieldMeta->type(), result_value))) {
         values.clear();

@@ -25,6 +25,7 @@ enum class AttrType
   DATES,
   NULLS,
   TEXTS,
+  HIGH_VECTORS,
   VALUESLISTS,  ///< 用于保存子查询的结果，以及数组
   MAXTYPE,      ///< 请在 UNDEFINED 与 MAXTYPE 之间增加新类型
 };

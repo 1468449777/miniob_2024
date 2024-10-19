@@ -13,6 +13,7 @@
 #define PAGE_COUNT_OFFSET 8
 #define TEXT_LENGTH_OFFSET 12
 #define MAX_TEXT_LENGTH 65535
+#define MAX_VECTOR_DIM 16000
 
 class Table;
 
@@ -30,11 +31,11 @@ public:
 
   RC get_text(PageNum page_num, string &res);
 
-  RC write_text(const std::string &text, PageNum &page_num);
+  RC write_text(const char *text, int total_len, PageNum &page_num);
 
   RC delete_text(PageNum page_num);
 
-  RC update_text(PageNum in_page, const string &text, PageNum &out_page);
+  RC update_text(PageNum in_page, const char *text, int total_len, PageNum &out_page);
 private:
     // Table *table_ = nullptr;
     DiskBufferPool &disk_buffer_pool_;
