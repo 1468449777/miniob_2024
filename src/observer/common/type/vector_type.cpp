@@ -23,8 +23,9 @@ int VectorType::compare(const Value &left, const Value &right) const
   for (int i = 0; i < left.length() / 4; i++) {
     Value left_tmp(left.get_vectors()[i]);
     Value right_tmp(right.get_vectors()[i]);
-    if (left_tmp.compare(right_tmp) != 0) {
-      return INT32_MAX;
+    int   result;
+    if ((result = left_tmp.compare(right_tmp)) != 0) {
+      return result;
     }
   }
   return 0;
@@ -47,7 +48,15 @@ RC VectorType::subtract(const Value &left, const Value &right, Value &result) co
   result.set_vecs(tmp);
   return RC::SUCCESS;
 }
-RC VectorType::multiply(const Value &left, const Value &right, Value &result) const { return RC::UNIMPLEMENTED; }
+RC VectorType::multiply(const Value &left, const Value &right, Value &result) const
+{
+  vector<float> tmp;
+  for (int i = 0; i < left.length() / 4; i++) {
+    tmp.push_back(left.get_vectors()[i] * right.get_vectors()[i]);
+  }
+  result.set_vecs(tmp);
+  return RC::SUCCESS;
+}
 RC VectorType::to_string(const Value &val, string &result) const
 {
   result = "[";
