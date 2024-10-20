@@ -66,7 +66,7 @@ RC IvfflatIndex::create(
   } else if (type_str == "cosine_distance") {
     type_ = cosine_;
   }
-  kmeans.init(lists_, dim_);
+  kmeans.init(600, dim_);
 
   return RC::SUCCESS;
 };

@@ -97,6 +97,7 @@ RC VectorIndexScanPhysicalOperator::close()
   }
   copied_tuples_.clear();
   index_scanner_->destroy();
+  delete index_scanner_;
   index_scanner_ = nullptr;
   return RC::SUCCESS;
 }
