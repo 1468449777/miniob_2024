@@ -933,6 +933,7 @@ RC Table::create_index(Trx *trx, vector<const FieldMeta *> field_meta, const cha
     return rc;
   }
   scanner.close_scan();
+  index->update_centroids();
   LOG_INFO("inserted all records into new index. table=%s, index=%s", name(), index_name);
 
   indexes_.push_back(index);

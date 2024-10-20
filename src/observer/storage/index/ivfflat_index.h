@@ -24,7 +24,6 @@ See the Mulan PSL v2 for more details. */
 #include <cmath>
 #include <limits>
 #include <unordered_map>
-
 class Table;
 enum dis_type
 {
@@ -53,15 +52,14 @@ private:
   std::vector<RID> closest_rids_;
 };
 
-
 inline float euclidean_distance(const float *a, const float *b, int size, dis_type type)
 {
   float dist = 0.0f;
   switch (type) {
     case l2_: {
-      float diff = 0.0f;
+#pragma omp parallel for reduction(+ : dist)
       for (size_t i = 0; i < size; ++i) {
-        diff = a[i] - b[i];
+        float diff = a[i] - b[i];
         dist += diff * diff;
       }
       //  return euclidean_distance_parallel(a,b,size,8);  // 这里不用开方也能保证相对大小
@@ -105,7 +103,7 @@ public:
     // 简单初始化：随机设定一些聚类中心（可以使用更好的方法）
     for (int i = 0; i < num_clusters; ++i) {
       for (int j = 0; j < dim; ++j) {
-        centroids[i][j] = static_cast<float>((float)rand() / (float)RAND_MAX * 300);
+        centroids[i][j] = static_cast<float>((float)rand() / (float)RAND_MAX * 250);
       }
     }
   }
@@ -116,7 +114,7 @@ public:
     // 简单初始化：随机设定一些聚类中心（可以使用更好的方法）
     for (int i = 0; i < num_clusters; ++i) {
       for (int j = 0; j < dim; ++j) {
-        centroids[i][j] = static_cast<float>((float)rand() / (float)RAND_MAX * 300);
+        centroids[i][j] = static_cast<float>((float)rand() / (float)RAND_MAX * 250);
       }
     }
     dim_ = dim;
@@ -124,7 +122,7 @@ public:
 
   // 找到最近的聚类中心
   std::vector<int> assign_cluster_with_probes(
-      const float *vector, dis_type type, int probes)
+      const float *vector, std::unordered_map<int, std::vector<RID>> &inverted_list, dis_type type, int probes)
   {
     // 使用最小堆保存最近的簇及其距离
     using Pair = std::pair<float, int>;  // first: 距离, second: 簇索引
@@ -171,6 +169,39 @@ public:
     return closest;
   }
 
+  void update_centroids(const std::unordered_map<int, std::vector<RID>> &inverted_list, Table *table, int offset)
+  {
+    std::vector<int>                counts(centroids.size(), 0);
+    std::vector<std::vector<float>> new_centroids(centroids.size(), std::vector<float>(dim_, 0.0f));
+    Record                          record;
+    for (const auto &entry : inverted_list) {
+      int         cluster_id = entry.first;   // 聚类 ID
+      const auto &rids       = entry.second;  // 该聚类中的所有 RID
+
+      for (const RID &rid : rids) {
+        // 使用 rid.getfloats() 获取特征向量
+        table->get_record(rid, record);
+        float *feature_vector = (float *)(record.data() + offset);  // 假设 getfloats() 返回特征向量
+
+        // 更新新聚类中心
+        for (size_t i = 0; i < dim_; ++i) {
+          new_centroids[cluster_id][i] += feature_vector[i];
+        }
+        counts[cluster_id] += 1;  // 计数
+      }
+    }
+
+    // 计算均值，更新聚类中心
+    for (size_t i = 0; i < centroids.size(); ++i) {
+      if (counts[i] > 0) {
+        for (size_t j = 0; j < dim_; ++j) {
+          new_centroids[i][j] /= counts[i];  // 计算均值
+        }
+        centroids[i] = new_centroids[i];  // 更新聚类中心
+      }
+    }
+  }
+
   int dim_;
 };
 
@@ -201,11 +232,7 @@ public:
   RC insert_entry(Record &record, const RID *rid, const int record_size, int field_indexs[]) override
   {
     int cluster_id = kmeans.assign_cluster((float *)(record.data() + offset_), type_);
-    std::vector<float> vector;
-    for(int i=0;i<dim_;i++){
-     vector.push_back(((float *)(record.data() + offset_))[i]);
-    }
-    inverted_list[cluster_id].push_back(make_pair(*rid,std::move(vector)));
+    inverted_list[cluster_id].push_back(*rid);
     return RC::SUCCESS;
   };
 
@@ -237,11 +264,12 @@ public:
       return lhs.first < rhs.first;  // 按照距离进行比较，距离小的优先
     }
   };
+
   // 搜索最近的向量
   std::vector<RID> search(float *query, int limit)
   {
     // 1. 找到最近的聚类中心
-    std::vector<int> cluster_ids = kmeans.assign_cluster_with_probes(query, type_, 3);
+    std::vector<int> cluster_ids = kmeans.assign_cluster_with_probes(query, inverted_list, type_, 3);
 
     // 2. 在该聚类内搜索最近的向量
     VacuousTrx       trx;
@@ -250,39 +278,74 @@ public:
 
     // 定义一个优先队列（小顶堆），存储距离和对应的 RID
     using DistanceAndRID = std::pair<float, RID>;
-    std::priority_queue<DistanceAndRID, std::vector<DistanceAndRID>, CompareDistanceAndRID> closest_queue;
-    for (auto &cluster_id : cluster_ids) {
-      for (const auto &rid : inverted_list[cluster_id]) {
-       // table_->get_record(rid, record);
-        float dist = euclidean_distance(query, rid.second.data(), dim_, type_);
+    std::priority_queue<DistanceAndRID, std::vector<DistanceAndRID>, CompareDistanceAndRID>
+        closest_queue[cluster_ids.size()];
+
+#pragma omp parallel for
+    for (int i = 0; i < cluster_ids.size(); i++) {
+      for (const auto &rid : inverted_list[cluster_ids[i]]) {
+        table_->get_record(rid, record);
+        float dist = euclidean_distance(query, (float *)(record.data() + offset_), dim_, type_);
 
         // 如果小顶堆的大小小于 limit，直接插入
-        if (closest_queue.size() < limit) {
-          closest_queue.emplace(dist, rid.first);
+        if (closest_queue[i].size() < limit) {
+          closest_queue[i].emplace(dist, rid);
         } else {
           // 如果堆已满，且当前距离比堆顶大，则替换堆顶
-          if (dist < closest_queue.top().first) {
-            closest_queue.pop();               // 移除堆顶
-            closest_queue.emplace(dist, rid.first);  // 插入当前更近的向量
+          if (dist < closest_queue[i].top().first) {
+            closest_queue[i].pop();               // 移除堆顶
+            closest_queue[i].emplace(dist, rid);  // 插入当前更近的向量
           }
         }
       }
     }
-    // 遍历聚类中的所有向量
+    // 合并
+    std::priority_queue<DistanceAndRID, std::vector<DistanceAndRID>, CompareDistanceAndRID> closest_queue_merge;
+    for (int i = 0; i < cluster_ids.size(); i++) {
+      while (!closest_queue[i].empty()) {
+        float dist = closest_queue[i].top().first;
+        RID   rid  = closest_queue[i].top().second;
+        closest_queue[i].pop();
 
+        // 如果全局堆的大小小于 limit，直接插入
+        if (closest_queue_merge.size() < limit) {
+          closest_queue_merge.emplace(dist, rid);
+        } else {
+          // 如果全局堆已满，且当前距离比堆顶小，则替换堆顶
+          if (dist < closest_queue_merge.top().first) {
+            closest_queue_merge.pop();               // 移除堆顶
+            closest_queue_merge.emplace(dist, rid);  // 插入当前更近的向量
+          }
+        }
+      }
+    }
     // 将小顶堆中的结果放入 closest_rids 中
-    while (!closest_queue.empty()) {
-      closest_rids.push_back(closest_queue.top().second);
-      closest_queue.pop();
+    while (!closest_queue_merge.empty()) {
+      closest_rids.push_back(closest_queue_merge.top().second);
+      closest_queue_merge.pop();
     }
     std::reverse(closest_rids.begin(), closest_rids.end());
 
     return closest_rids;  // 返回 limit 个最近的向量
   }
 
+  void update_centroids()
+  {
+    kmeans.update_centroids(inverted_list, table_, offset_);
+    std::unordered_map<int, std::vector<RID>> old_inverted_list = inverted_list;
+    inverted_list.clear();
+    Record record;
+    for (auto &list : old_inverted_list) {
+      for (auto &rid : list.second) {
+        table_->get_record(rid, record);
+        insert_entry(record, &rid, -1, nullptr);
+      }
+    }
+  }
+
 private:
   KMeans                                    kmeans;         // 用于对数据进行聚类
-  std::unordered_map<int, std::vector<pair<RID,vector<float>>>> inverted_list;  // 倒排列表
+  std::unordered_map<int, std::vector<RID>> inverted_list;  // 倒排列表
 
   int              lists_  = 1;
   int              probes_ = 1;
