@@ -717,10 +717,14 @@ value:
       char *tmp1 = nullptr;
       if(tmp[0] == '['){
         tmp1 = common::substr(tmp,1,strlen(tmp)-2);
+        $$ = new Value(tmp1,-3);
+        free(tmp1);
+      }else{
+        $$ = new Value(tmp,-3);
       }
-      $$ = new Value(tmp1,-3);
+      
       free(tmp);
-      free(tmp1);
+      
       free($1);
     }
     ;

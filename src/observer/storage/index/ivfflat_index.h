@@ -122,8 +122,8 @@ public:
   }
 
   // 找到最近的聚类中心
-  std::vector<int> assign_cluster_with_probes(
-      const float *vector, std::unordered_map<int, std::vector<RID>> &inverted_list, dis_type type, int probes)
+  std::vector<int> assign_cluster_with_probes(const float                 *vector,
+      std::unordered_map<int, std::vector<pair<RID, std::vector<float>>>> &inverted_list, dis_type type, int probes)
   {
     // 使用最小堆保存最近的簇及其距离
     using Pair = std::pair<float, int>;  // first: 距离, second: 簇索引
@@ -172,7 +172,8 @@ public:
     return closest;
   }
 
-  void update_centroids(const std::unordered_map<int, std::vector<RID>> &inverted_list, Table *table, int offset)
+  void update_centroids(
+      const std::unordered_map<int, std::vector<pair<RID, vector<float>>>> &inverted_list, Table *table, int offset)
   {
     std::vector<int>                counts(centroids.size(), 0);
     std::vector<std::vector<float>> new_centroids(centroids.size(), std::vector<float>(dim_, 0.0f));
@@ -181,9 +182,9 @@ public:
       int         cluster_id = entry.first;   // 聚类 ID
       const auto &rids       = entry.second;  // 该聚类中的所有 RID
 
-      for (const RID &rid : rids) {
+      for (auto &rid : rids) {
         // 使用 rid.getfloats() 获取特征向量
-        table->get_record(rid, record);
+        table->get_record(rid.first, record);
         float *feature_vector = (float *)(record.data() + offset);  // 假设 getfloats() 返回特征向量
 
         // 更新新聚类中心
@@ -234,8 +235,13 @@ public:
 
   RC insert_entry(Record &record, const RID *rid, const int record_size, int field_indexs[]) override
   {
-    int cluster_id = kmeans.assign_cluster((float *)(record.data() + offset_), type_);
-    inverted_list[cluster_id].push_back(*rid);
+    int           cluster_id = kmeans.assign_cluster((float *)(record.data() + offset_), type_);
+    vector<float> tmp;
+    tmp.reserve(dim_);
+    for (int i = 0; i < dim_; i++) {
+      tmp.push_back(((float *)(record.data() + offset_))[i]);
+    }
+    inverted_list[cluster_id].push_back(make_pair(*rid, std::move(tmp)));
     return RC::SUCCESS;
   };
 
@@ -287,18 +293,18 @@ public:
     for (int i = 0; i < cluster_ids.size(); i++) {
 #pragma omp parallel for
       for (const auto &rid : inverted_list[cluster_ids[i]]) {
-        table_->get_record(rid, record);
-        float dist = euclidean_distance(query, (float *)(record.data() + offset_), dim_, type_);
+        // table_->get_record(rid, record);
+        float dist = euclidean_distance(query, rid.second.data(), dim_, type_);
 
 // 如果小顶堆的大小小于 limit，直接插入
 #pragma omp critical
         if (closest_queue.size() < limit) {
-          closest_queue.emplace(dist, rid);
+          closest_queue.emplace(dist, rid.first);
         } else {
           // 如果堆已满，且当前距离比堆顶大，则替换堆顶
           if (dist < closest_queue.top().first) {
-            closest_queue.pop();               // 移除堆顶
-            closest_queue.emplace(dist, rid);  // 插入当前更近的向量
+            closest_queue.pop();                     // 移除堆顶
+            closest_queue.emplace(dist, rid.first);  // 插入当前更近的向量
           }
         }
       }
@@ -336,20 +342,25 @@ public:
   void update_centroids()
   {
     kmeans.update_centroids(inverted_list, table_, offset_);
-    std::unordered_map<int, std::vector<RID>> old_inverted_list = inverted_list;
     inverted_list.clear();
-    Record record;
-    for (auto &list : old_inverted_list) {
-      for (auto &rid : list.second) {
-        table_->get_record(rid, record);
-        insert_entry(record, &rid, -1, nullptr);
-      }
+    Record            record;
+    RecordFileScanner scanner;
+    VacuousTrx        trx;
+    RC                rc = table_->get_record_scanner(scanner, &trx, ReadWriteMode::READ_ONLY);
+    while (OB_SUCC(rc = scanner.next(record))) {
+      rc = insert_entry(record, &record.rid(), -1, nullptr);
     }
+    if (RC::RECORD_EOF == rc) {
+      rc = RC::SUCCESS;
+    } else {
+  
+    }
+    scanner.close_scan();
   }
 
 private:
-  KMeans                                    kmeans;         // 用于对数据进行聚类
-  std::unordered_map<int, std::vector<RID>> inverted_list;  // 倒排列表
+  KMeans                                                         kmeans;         // 用于对数据进行聚类
+  std::unordered_map<int, std::vector<pair<RID, vector<float>>>> inverted_list;  // 倒排列表
 
   int              lists_  = 1;
   int              probes_ = 1;
