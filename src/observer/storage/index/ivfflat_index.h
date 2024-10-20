@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/record/record.h"
 #include "storage/text/text_manager.h"
 #include "storage/trx/vacuous_trx.h"
+#include <mutex>
 #include <numeric>
 #include <queue>
 #include <vector>
@@ -128,10 +129,12 @@ public:
     using Pair = std::pair<float, int>;  // first: 距离, second: 簇索引
     std::priority_queue<Pair> closest_clusters;
 
+#pragma omp parallel for
     for (size_t i = 0; i < centroids.size(); ++i) {
       float dist = euclidean_distance(vector, centroids[i].data(), dim_, type);
 
       // 如果堆未满或当前距离比堆中的最大距离小
+#pragma omp parallel critical
       if (closest_clusters.size() < probes || dist < closest_clusters.top().first) {
         closest_clusters.push({dist, i});
         // 保证堆的大小最多为 probes
@@ -278,51 +281,52 @@ public:
 
     // 定义一个优先队列（小顶堆），存储距离和对应的 RID
     using DistanceAndRID = std::pair<float, RID>;
-    std::priority_queue<DistanceAndRID, std::vector<DistanceAndRID>, CompareDistanceAndRID>
-        closest_queue[cluster_ids.size()];
+    std::priority_queue<DistanceAndRID, std::vector<DistanceAndRID>, CompareDistanceAndRID> closest_queue;
 
 #pragma omp parallel for
     for (int i = 0; i < cluster_ids.size(); i++) {
+#pragma omp parallel for
       for (const auto &rid : inverted_list[cluster_ids[i]]) {
         table_->get_record(rid, record);
         float dist = euclidean_distance(query, (float *)(record.data() + offset_), dim_, type_);
 
-        // 如果小顶堆的大小小于 limit，直接插入
-        if (closest_queue[i].size() < limit) {
-          closest_queue[i].emplace(dist, rid);
+// 如果小顶堆的大小小于 limit，直接插入
+#pragma omp critical
+        if (closest_queue.size() < limit) {
+          closest_queue.emplace(dist, rid);
         } else {
           // 如果堆已满，且当前距离比堆顶大，则替换堆顶
-          if (dist < closest_queue[i].top().first) {
-            closest_queue[i].pop();               // 移除堆顶
-            closest_queue[i].emplace(dist, rid);  // 插入当前更近的向量
+          if (dist < closest_queue.top().first) {
+            closest_queue.pop();               // 移除堆顶
+            closest_queue.emplace(dist, rid);  // 插入当前更近的向量
           }
         }
       }
     }
-    // 合并
-    std::priority_queue<DistanceAndRID, std::vector<DistanceAndRID>, CompareDistanceAndRID> closest_queue_merge;
-    for (int i = 0; i < cluster_ids.size(); i++) {
-      while (!closest_queue[i].empty()) {
-        float dist = closest_queue[i].top().first;
-        RID   rid  = closest_queue[i].top().second;
-        closest_queue[i].pop();
+    // // 合并
+    // std::priority_queue<DistanceAndRID, std::vector<DistanceAndRID>, CompareDistanceAndRID> closest_queue_merge;
+    // for (int i = 0; i < cluster_ids.size(); i++) {
+    //   while (!closest_queue[i].empty()) {
+    //     float dist = closest_queue[i].top().first;
+    //     RID   rid  = closest_queue[i].top().second;
+    //     closest_queue[i].pop();
 
-        // 如果全局堆的大小小于 limit，直接插入
-        if (closest_queue_merge.size() < limit) {
-          closest_queue_merge.emplace(dist, rid);
-        } else {
-          // 如果全局堆已满，且当前距离比堆顶小，则替换堆顶
-          if (dist < closest_queue_merge.top().first) {
-            closest_queue_merge.pop();               // 移除堆顶
-            closest_queue_merge.emplace(dist, rid);  // 插入当前更近的向量
-          }
-        }
-      }
-    }
+    //     // 如果全局堆的大小小于 limit，直接插入
+    //     if (closest_queue_merge.size() < limit) {
+    //       closest_queue_merge.emplace(dist, rid);
+    //     } else {
+    //       // 如果全局堆已满，且当前距离比堆顶小，则替换堆顶
+    //       if (dist < closest_queue_merge.top().first) {
+    //         closest_queue_merge.pop();               // 移除堆顶
+    //         closest_queue_merge.emplace(dist, rid);  // 插入当前更近的向量
+    //       }
+    //     }
+    //   }
+    // }
     // 将小顶堆中的结果放入 closest_rids 中
-    while (!closest_queue_merge.empty()) {
-      closest_rids.push_back(closest_queue_merge.top().second);
-      closest_queue_merge.pop();
+    while (!closest_queue.empty()) {
+      closest_rids.push_back(closest_queue.top().second);
+      closest_queue.pop();
     }
     std::reverse(closest_rids.begin(), closest_rids.end());
 
