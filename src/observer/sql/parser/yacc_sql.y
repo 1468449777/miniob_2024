@@ -714,10 +714,16 @@ value:
     }
     |VEC_STR{
       char *tmp = common::substr($1,1,strlen($1)-2);
+      char *tmp1 = nullptr;
       if(tmp[0] == '['){
-        tmp = common::substr(tmp,1,strlen(tmp)-2);
+        tmp1 = common::substr(tmp,1,strlen(tmp)-2);
+        $$ = new Value(tmp1, -3);
+        free(tmp1);
       }
-      $$ = new Value(tmp,-3);
+      else {
+        $$ = new Value(tmp, -3);
+      }
+      // $$ = new Value(tmp,-3);
       free(tmp);
       free($1);
     }

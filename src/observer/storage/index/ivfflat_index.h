@@ -18,12 +18,15 @@ See the Mulan PSL v2 for more details. */
 #include "storage/record/record.h"
 #include "storage/text/text_manager.h"
 #include "storage/trx/vacuous_trx.h"
+#include "dkm.h"
 #include <numeric>
 #include <queue>
 #include <vector>
 #include <cmath>
 #include <limits>
 #include <unordered_map>
+#include "immintrin.h"
+
 class Table;
 enum dis_type
 {
@@ -58,32 +61,137 @@ inline float euclidean_distance(const float *a, const float *b, int size, dis_ty
   switch (type) {
     case l2_: {
 #pragma omp parallel for reduction(+ : dist)
-      for (size_t i = 0; i < size; ++i) {
-        float diff = a[i] - b[i];
-        dist += diff * diff;
+      // for (size_t i = 0; i < size; ++i) {
+      //   float diff = a[i] - b[i];
+      //   dist += diff * diff;
+      // }
+
+
+      __m256 sum = _mm256_setzero_ps(); // 初始化为 0
+
+      // 处理完整的 8 元素块
+      size_t i = 0;
+      for (; i + 7 < size; i += 8) {
+          __m256 v1 = _mm256_loadu_ps(&a[i]);
+          __m256 v2 = _mm256_loadu_ps(&b[i]);
+          __m256 diff = _mm256_sub_ps(v1, v2);
+          __m256 sq = _mm256_mul_ps(diff, diff);
+          sum = _mm256_add_ps(sum, sq);
       }
+      // 处理剩余的元素
+      float scalarSum = 0.0f;
+      for (; i < size; ++i) {
+          float diff = a[i] - b[i];
+          scalarSum += diff * diff;
+      }
+
+      // 处理最后的结果
+      float result[8];
+      _mm256_storeu_ps(result, sum);
+      dist = std::sqrt(scalarSum + result[0] + result[1] + result[2] + result[3] + result[4] + result[5] + result[6] + result[7]);
+
       //  return euclidean_distance_parallel(a,b,size,8);  // 这里不用开方也能保证相对大小
     } break;
     case cosine_: {
 
-      float inner_p = 0.0;
-      float mod_1   = 0.0;
-      float mod_2   = 0.0;
-      for (int i = 0; i < size; i++) {
-        inner_p += a[i] * b[i];
-        mod_1 += a[i] * b[i];
-        mod_2 += a[i] * b[i];
+      // float inner_p = 0.0;
+      // float mod_1   = 0.0;
+      // float mod_2   = 0.0;
+      // for (int i = 0; i < size; i++) {
+      //   inner_p += a[i] * b[i];
+      //   mod_1 += a[i] * b[i];
+      //   mod_2 += a[i] * b[i];
+      // }
+      // mod_1 = sqrtf(mod_1);
+      // mod_2 = sqrtf(mod_2);
+      // return (1 - (inner_p / (mod_1 * mod_2)));
+      __m256 sumInner = _mm256_setzero_ps(); // 用于内积
+      __m256 sumMod1 = _mm256_setzero_ps();   // 用于模1
+      __m256 sumMod2 = _mm256_setzero_ps();   // 用于模2
+
+      int i = 0;
+      // 处理完整的8元素块
+      for (; i + 7 < size; i += 8) {
+          __m256 vecA = _mm256_loadu_ps(&a[i]); // 加载8个元素
+          __m256 vecB = _mm256_loadu_ps(&b[i]); // 加载8个元素
+
+          // 计算内积
+          __m256 mul = _mm256_mul_ps(vecA, vecB);
+          sumInner = _mm256_add_ps(sumInner, mul);
+
+          // 计算模
+          sumMod1 = _mm256_add_ps(sumMod1, _mm256_mul_ps(vecA, vecA));
+          sumMod2 = _mm256_add_ps(sumMod2, _mm256_mul_ps(vecB, vecB));
       }
+
+      // 处理剩余元素
+      float inner_p = 0.0f;
+      float mod_1 = 0.0f;
+      float mod_2 = 0.0f;
+      for (; i < size; ++i) {
+          inner_p += a[i] * b[i];
+          mod_1 += a[i] * a[i];
+          mod_2 += b[i] * b[i];
+      }
+
+      // 收集 AVX 计算结果
+      float innerArr[8];
+      _mm256_storeu_ps(innerArr, sumInner);
+      for (int j = 0; j < 8; ++j) {
+          inner_p += innerArr[j];
+      }
+
+      float mod1Arr[8];
+      _mm256_storeu_ps(mod1Arr, sumMod1);
+      for (int j = 0; j < 8; ++j) {
+          mod_1 += mod1Arr[j];
+      }
+
+      float mod2Arr[8];
+      _mm256_storeu_ps(mod2Arr, sumMod2);
+      for (int j = 0; j < 8; ++j) {
+          mod_2 += mod2Arr[j];
+      }
+
+      // 计算平方根
       mod_1 = sqrtf(mod_1);
       mod_2 = sqrtf(mod_2);
+
       return (1 - (inner_p / (mod_1 * mod_2)));
     } break;
     case inner_: {
-      float f_result = 0.0;
-      for (int i = 0; i < size; i++) {
-        f_result += a[i] * b[i];
+      // float f_result = 0.0;
+      // for (int i = 0; i < size; i++) {
+      //   f_result += a[i] * b[i];
+      // }
+      // return f_result;
+
+      __m256 sum = _mm256_setzero_ps(); // 初始化为 0
+
+      int i = 0;
+      // 处理完整的8元素块
+      for (; i + 7 < size; i += 8) {
+          __m256 vecA = _mm256_loadu_ps(&a[i]); // 加载8个元素
+          __m256 vecB = _mm256_loadu_ps(&b[i]); // 加载8个元素
+
+          // 计算乘积并累加
+          __m256 mul = _mm256_mul_ps(vecA, vecB);
+          sum = _mm256_add_ps(sum, mul);
       }
-      return f_result;
+
+      // 处理剩余元素
+      float result = 0.0f;
+      for (; i < size; ++i) {
+          result += a[i] * b[i];
+      }
+
+      // 收集 AVX 计算结果
+      float temp[8];
+      _mm256_storeu_ps(temp, sum);
+      for (int j = 0; j < 8; ++j) {
+          result += temp[j];
+      }
+      return result;
     } break;
   }
   return dist;
@@ -99,24 +207,24 @@ public:
   // 初始化聚类中心
   KMeans(int num_clusters, int dim)
   {
-    centroids.resize(num_clusters, std::vector<float>(dim, 0.0f));
+    // centroids.resize(num_clusters, std::vector<float>(dim, 0.0f));
     // 简单初始化：随机设定一些聚类中心（可以使用更好的方法）
-    for (int i = 0; i < num_clusters; ++i) {
-      for (int j = 0; j < dim; ++j) {
-        centroids[i][j] = static_cast<float>((float)rand() / (float)RAND_MAX * 250);
-      }
-    }
+    // for (int i = 0; i < num_clusters; ++i) {
+    //   for (int j = 0; j < dim; ++j) {
+    //     centroids[i][j] = static_cast<float>((float)rand() / (float)RAND_MAX * 250);
+    //   }
+    // }
   }
 
   void init(int num_clusters, int dim)
   {
-    centroids.resize(num_clusters, std::vector<float>(dim, 0.0f));
-    // 简单初始化：随机设定一些聚类中心（可以使用更好的方法）
-    for (int i = 0; i < num_clusters; ++i) {
-      for (int j = 0; j < dim; ++j) {
-        centroids[i][j] = static_cast<float>((float)rand() / (float)RAND_MAX * 250);
-      }
-    }
+  //   centroids.resize(num_clusters, std::vector<float>(dim, 0.0f));
+  //   // 简单初始化：随机设定一些聚类中心（可以使用更好的方法）
+  //   for (int i = 0; i < num_clusters; ++i) {
+  //     for (int j = 0; j < dim; ++j) {
+  //       centroids[i][j] = static_cast<float>((float)rand() / (float)RAND_MAX * 250);
+  //     }
+  //   }
     dim_ = dim;
   }
 
@@ -169,40 +277,69 @@ public:
     return closest;
   }
 
-  void update_centroids(const std::unordered_map<int, std::vector<RID>> &inverted_list, Table *table, int offset)
-  {
-    std::vector<int>                counts(centroids.size(), 0);
-    std::vector<std::vector<float>> new_centroids(centroids.size(), std::vector<float>(dim_, 0.0f));
-    Record                          record;
-    for (const auto &entry : inverted_list) {
-      int         cluster_id = entry.first;   // 聚类 ID
-      const auto &rids       = entry.second;  // 该聚类中的所有 RID
+  // void update_centroids(const std::unordered_map<int, std::vector<RID>> &inverted_list, Table *table, int offset)
+  // {
+  //   std::vector<int>                counts(centroids.size(), 0);
+  //   std::vector<std::vector<float>> new_centroids(centroids.size(), std::vector<float>(dim_, 0.0f));
+  //   Record                          record;
+  //   for (const auto &entry : inverted_list) {
+  //     int         cluster_id = entry.first;   // 聚类 ID
+  //     const auto &rids       = entry.second;  // 该聚类中的所有 RID
 
-      for (const RID &rid : rids) {
-        // 使用 rid.getfloats() 获取特征向量
-        table->get_record(rid, record);
-        float *feature_vector = (float *)(record.data() + offset);  // 假设 getfloats() 返回特征向量
+  //     for (const RID &rid : rids) {
+  //       // 使用 rid.getfloats() 获取特征向量
+  //       table->get_record(rid, record);
+  //       float *feature_vector = (float *)(record.data() + offset);  // 假设 getfloats() 返回特征向量
 
-        // 更新新聚类中心
-        for (size_t i = 0; i < dim_; ++i) {
-          new_centroids[cluster_id][i] += feature_vector[i];
-        }
-        counts[cluster_id] += 1;  // 计数
-      }
+  //       // 更新新聚类中心
+  //       for (size_t i = 0; i < dim_; ++i) {
+  //         new_centroids[cluster_id][i] += feature_vector[i];
+  //       }
+  //       counts[cluster_id] += 1;  // 计数
+  //     }
+  //   }
+
+  //   // 计算均值，更新聚类中心
+  //   for (size_t i = 0; i < centroids.size(); ++i) {
+  //     if (counts[i] > 0) {
+  //       for (size_t j = 0; j < dim_; ++j) {
+  //         new_centroids[i][j] /= counts[i];  // 计算均值
+  //       }
+  //       centroids[i] = new_centroids[i];  // 更新聚类中心
+  //     }
+  //   }
+  // }
+
+  void construct(vector<vector<float>> &vecs, dis_type type, int lists, vector<RID> &rids, unordered_map<int, vector<RID>> &inverted_list) {
+    assert(vecs.size() >= lists);
+    if (constructed_) {
+      return ;
     }
-
-    // 计算均值，更新聚类中心
-    for (size_t i = 0; i < centroids.size(); ++i) {
-      if (counts[i] > 0) {
-        for (size_t j = 0; j < dim_; ++j) {
-          new_centroids[i][j] /= counts[i];  // 计算均值
-        }
-        centroids[i] = new_centroids[i];  // 更新聚类中心
-      }
+    constructed_ = true;
+    std::tuple<std::vector<std::vector<float>>, std::vector<uint32_t>> result;
+    switch(type) {
+      case l2_: {
+        result = dkm::kmeans_lloyd<float, 0>(vecs, lists);
+      } break;
+      case cosine_: {
+        result = dkm::kmeans_lloyd<float, 1>(vecs, lists);
+      } break;
+      case inner_: {
+        result = dkm::kmeans_lloyd<float, 2>(vecs, lists);
+      } break;
+      default:
+      break;
+    };
+    centroids = get<0>(result);
+    vector<uint32_t> bucket = get<1>(result);
+    for (int i = 0; i < vecs.size(); i++) {
+      inverted_list[bucket[i]].push_back(rids[i]);
     }
+    vecs.clear();
+    rids.clear();
   }
-
   int dim_;
+  bool constructed_ = false;
 };
 
 /**
@@ -211,6 +348,7 @@ public:
  */
 class IvfflatIndex : public Index
 {
+  friend class KMeans;
 public:
   IvfflatIndex(){};
   virtual ~IvfflatIndex() noexcept {};
@@ -231,8 +369,15 @@ public:
 
   RC insert_entry(Record &record, const RID *rid, const int record_size, int field_indexs[]) override
   {
-    int cluster_id = kmeans.assign_cluster((float *)(record.data() + offset_), type_);
-    inverted_list[cluster_id].push_back(*rid);
+    // int cluster_id = kmeans.assign_cluster((float *)(record.data() + offset_), type_);
+    // inverted_list[cluster_id].push_back(*rid);
+    vector<float> vf;
+    float *pf = (float *)(record.data() + offset_);
+    for (int i = 0; i < kmeans.dim_; i++) {
+      vf.push_back(pf[i]);
+    }
+    record_buf_.push_back(vf);
+    rid_buf_.push_back((*rid));
     return RC::SUCCESS;
   };
 
@@ -331,16 +476,17 @@ public:
 
   void update_centroids()
   {
-    kmeans.update_centroids(inverted_list, table_, offset_);
-    std::unordered_map<int, std::vector<RID>> old_inverted_list = inverted_list;
-    inverted_list.clear();
-    Record record;
-    for (auto &list : old_inverted_list) {
-      for (auto &rid : list.second) {
-        table_->get_record(rid, record);
-        insert_entry(record, &rid, -1, nullptr);
-      }
-    }
+    // kmeans.update_centroids(inverted_list, table_, offset_);
+    // std::unordered_map<int, std::vector<RID>> old_inverted_list = inverted_list;
+    // inverted_list.clear();
+    // Record record;
+    // for (auto &list : old_inverted_list) {
+    //   for (auto &rid : list.second) {
+    //     table_->get_record(rid, record);
+    //     insert_entry(record, &rid, -1, nullptr);
+    //   }
+    // }
+    kmeans.construct(record_buf_, type_, lists_, rid_buf_, inverted_list);
   }
 
 private:
@@ -356,4 +502,6 @@ private:
   IndexMeta        index_meta_;
   BplusTreeHandler index_handler_;
   bool             inited_ = false;
+  vector<vector<float>> record_buf_;
+  vector<RID> rid_buf_;
 };
