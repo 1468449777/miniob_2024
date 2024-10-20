@@ -24,7 +24,6 @@ See the Mulan PSL v2 for more details. */
 #include <cmath>
 #include <limits>
 #include <unordered_map>
-#include "dkm.hpp"
 
 class Table;
 enum dis_type
