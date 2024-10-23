@@ -143,41 +143,6 @@ RC LogicalPlanGenerator::create_plan(
     unique_ptr<LogicalOperator> table_get_oper(
         new TableGetLogicalOperator(table.second, ReadWriteMode::READ_ONLY, table.first));
 
-    // 处理向量的近邻搜索问题，不想放在计划rewriter那里写了，就在这里写掉吧
-    if (select_stmt->limit() > 0 && !select_stmt->order_by().order_by_attrs.empty()) {
-      FunctionExpr *function_expr = static_cast<FunctionExpr *>(select_stmt->order_by().order_by_attrs.front().get());
-      TableGetLogicalOperator *table_oper = static_cast<TableGetLogicalOperator *>(table_get_oper.get());
-      if (function_expr->child().size() != 2) {  // 这里取距离表达式的两个参数
-        return RC::ERROR;
-      }
-      for (auto &it : function_expr->child()) {
-        switch (it->type()) {
-          case ExprType::FIELD: {
-            FieldExpr *expr = static_cast<FieldExpr *>(it.get());
-            table_oper->set_index_field(*expr->field().meta());
-          } break;
-          case ExprType::VALUE: {
-            ValueExpr *expr = static_cast<ValueExpr *>(it.get());
-            Value      tmp;
-            expr->try_get_value(tmp);
-            table_oper->set_index_vector(tmp);
-          } break;
-          default: {
-          }
-        }
-      }
-      if (table_oper->table()->find_index_by_field(table_oper->index_field_meta().name()) != nullptr) {
-        table_oper->set_limit(select_stmt->limit());
-        select_stmt->limit() = -1;
-        table_oper->set_need_vector_index_scan(true);
-        if (select_stmt->order_by().order_by_attrs.size() > 1) {
-          return RC::ERROR;
-        } else {
-          table_oper->set_order_by(std::move(select_stmt->order_by()));
-        }
-      }
-    }
-
     table_set.insert(table.first);
 
     FilterStmt *cur_stmt = new FilterStmt;

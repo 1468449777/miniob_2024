@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include <string.h>
 #include <string>
 
+#include "common/rc.h"
 #include "optimize_stage.h"
 
 #include "common/conf/ini.h"
@@ -23,7 +24,11 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "event/session_event.h"
 #include "event/sql_event.h"
+#include "sql/operator/limit_logical_operator.h"
 #include "sql/operator/logical_operator.h"
+#include "sql/operator/sort_logical_operator.h"
+#include "sql/operator/table_get_logical_operator.h"
+#include "sql/optimizer/optimize_rule.h"
 #include "sql/stmt/stmt.h"
 
 using namespace std;
@@ -69,7 +74,12 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
 
 RC OptimizeStage::optimize(unique_ptr<LogicalOperator> &oper)
 {
-  // do nothing
+  // 目前只有这一条
+  OptimizeRule optimize_rules;
+  if (OB_FAIL(optimize_rules.ann_optimize(oper))) {
+    return RC::ERROR;
+  }
+
   return RC::SUCCESS;
 }
 
@@ -77,10 +87,11 @@ RC OptimizeStage::generate_physical_plan(
     unique_ptr<LogicalOperator> &logical_operator, unique_ptr<PhysicalOperator> &physical_operator, Session *session)
 {
   RC rc = RC::SUCCESS;
-  if (session->get_execution_mode() == ExecutionMode::CHUNK_ITERATOR && LogicalOperator::can_generate_vectorized_operator(logical_operator->type())) {
+  if (session->get_execution_mode() == ExecutionMode::CHUNK_ITERATOR &&
+      LogicalOperator::can_generate_vectorized_operator(logical_operator->type())) {
     LOG_INFO("use chunk iterator");
     session->set_used_chunk_mode(true);
-    rc    = physical_plan_generator_.create_vec(*logical_operator, physical_operator);
+    rc = physical_plan_generator_.create_vec(*logical_operator, physical_operator);
   } else {
     // LOG_INFO("use tuple iterator");
     session->set_used_chunk_mode(false);
