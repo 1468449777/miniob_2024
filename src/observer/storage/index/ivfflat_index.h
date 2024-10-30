@@ -58,6 +58,8 @@ inline float euclidean_distance(const float *a, const float *b, int size, dis_ty
   float dist = 0.0f;
   switch (type) {
     case l2_: {
+
+      // 这个并行实际是无效的，没开起来
 #pragma omp parallel for reduction(+ : dist)
       for (size_t i = 0; i < size; ++i) {
         float diff = a[i] - b[i];
@@ -185,7 +187,7 @@ public:
       for (auto &rid : rids) {
         // 使用 rid.getfloats() 获取特征向量
         table->get_record(rid.first, record);
-        float *feature_vector = (float *)(record.data() + offset);  // 假设 getfloats() 返回特征向量
+        float *feature_vector = (float *)(record.data() + offset);
 
         // 更新新聚类中心
         for (size_t i = 0; i < dim_; ++i) {
@@ -233,17 +235,7 @@ public:
 
   RC close() { return RC::UNIMPLEMENTED; }
 
-  RC insert_entry(Record &record, const RID *rid, const int record_size, int field_indexs[]) override
-  {
-    int           cluster_id = kmeans.assign_cluster((float *)(record.data() + offset_), type_);
-    vector<float> tmp;
-    tmp.reserve(dim_);
-    for (int i = 0; i < dim_; i++) {
-      tmp.push_back(((float *)(record.data() + offset_))[i]);
-    }
-    inverted_list[cluster_id].push_back(make_pair(*rid, std::move(tmp)));
-    return RC::SUCCESS;
-  };
+  RC insert_entry(Record &record, const RID *rid, const int record_size, int field_indexs[]) override;
 
   RC delete_entry(const char *record, const RID *rid) override { return RC::UNIMPLEMENTED; };
 
@@ -257,7 +249,6 @@ public:
       int right_len, bool right_inclusive) override
   {
     return nullptr;
-    ;
   }
 
   IndexScanner *create_scanner(float *query, int limit)
@@ -275,88 +266,8 @@ public:
   };
 
   // 搜索最近的向量
-  std::vector<RID> search(float *query, int limit)
-  {
-    // 1. 找到最近的聚类中心
-    std::vector<int> cluster_ids = kmeans.assign_cluster_with_probes(query, inverted_list, type_, 3);
-
-    // 2. 在该聚类内搜索最近的向量
-    VacuousTrx       trx;
-    Record           record;
-    std::vector<RID> closest_rids;
-
-    // 定义一个优先队列（小顶堆），存储距离和对应的 RID
-    using DistanceAndRID = std::pair<float, RID>;
-    std::priority_queue<DistanceAndRID, std::vector<DistanceAndRID>, CompareDistanceAndRID> closest_queue;
-
-#pragma omp parallel for
-    for (int i = 0; i < cluster_ids.size(); i++) {
-#pragma omp parallel for
-      for (const auto &rid : inverted_list[cluster_ids[i]]) {
-        // table_->get_record(rid, record);
-        float dist = euclidean_distance(query, rid.second.data(), dim_, type_);
-
-// 如果小顶堆的大小小于 limit，直接插入
-#pragma omp critical
-        if (closest_queue.size() < limit) {
-          closest_queue.emplace(dist, rid.first);
-        } else {
-          // 如果堆已满，且当前距离比堆顶大，则替换堆顶
-          if (dist < closest_queue.top().first) {
-            closest_queue.pop();                     // 移除堆顶
-            closest_queue.emplace(dist, rid.first);  // 插入当前更近的向量
-          }
-        }
-      }
-    }
-    // // 合并
-    // std::priority_queue<DistanceAndRID, std::vector<DistanceAndRID>, CompareDistanceAndRID> closest_queue_merge;
-    // for (int i = 0; i < cluster_ids.size(); i++) {
-    //   while (!closest_queue[i].empty()) {
-    //     float dist = closest_queue[i].top().first;
-    //     RID   rid  = closest_queue[i].top().second;
-    //     closest_queue[i].pop();
-
-    //     // 如果全局堆的大小小于 limit，直接插入
-    //     if (closest_queue_merge.size() < limit) {
-    //       closest_queue_merge.emplace(dist, rid);
-    //     } else {
-    //       // 如果全局堆已满，且当前距离比堆顶小，则替换堆顶
-    //       if (dist < closest_queue_merge.top().first) {
-    //         closest_queue_merge.pop();               // 移除堆顶
-    //         closest_queue_merge.emplace(dist, rid);  // 插入当前更近的向量
-    //       }
-    //     }
-    //   }
-    // }
-    // 将小顶堆中的结果放入 closest_rids 中
-    while (!closest_queue.empty()) {
-      closest_rids.push_back(closest_queue.top().second);
-      closest_queue.pop();
-    }
-    std::reverse(closest_rids.begin(), closest_rids.end());
-
-    return closest_rids;  // 返回 limit 个最近的向量
-  }
-
-  void update_centroids()
-  {
-    kmeans.update_centroids(inverted_list, table_, offset_);
-    inverted_list.clear();
-    Record            record;
-    RecordFileScanner scanner;
-    VacuousTrx        trx;
-    RC                rc = table_->get_record_scanner(scanner, &trx, ReadWriteMode::READ_ONLY);
-    while (OB_SUCC(rc = scanner.next(record))) {
-      rc = insert_entry(record, &record.rid(), -1, nullptr);
-    }
-    if (RC::RECORD_EOF == rc) {
-      rc = RC::SUCCESS;
-    } else {
-  
-    }
-    scanner.close_scan();
-  }
+  std::vector<RID> search(float *query, int limit);
+  void             update_centroids();
 
 private:
   KMeans                                                         kmeans;         // 用于对数据进行聚类
