@@ -71,11 +71,6 @@ RC SortPhysicalOperator::open(Trx *trx)
   while (OB_SUCC(rc = child->next())) {
     tuple_set_.push_back(child->current_tuple());
   }
-  for (auto &it : tuple_set_) {
-    if (it == nullptr) {
-      std::cout << "errot" << std::endl;
-    }
-  }
 
   std::sort(std::execution::par, tuple_set_.begin(), tuple_set_.end(), [&](const Tuple *x, const Tuple *y) {
     return compare(x, y, expressions_, order_by_type_);
