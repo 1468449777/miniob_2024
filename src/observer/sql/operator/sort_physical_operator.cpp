@@ -51,7 +51,7 @@ inline bool compare(const Tuple *x, const Tuple *y, std::vector<std::unique_ptr<
     // 如果这个字段相等，继续比较下一个字段
     ++count;
   }
-  return true;
+  return false;
 }
 
 RC SortPhysicalOperator::open(Trx *trx)
@@ -70,6 +70,11 @@ RC SortPhysicalOperator::open(Trx *trx)
 
   while (OB_SUCC(rc = child->next())) {
     tuple_set_.push_back(child->current_tuple());
+  }
+  for (auto &it : tuple_set_) {
+    if (it == nullptr) {
+      std::cout << "errot" << std::endl;
+    }
   }
 
   std::sort(std::execution::par, tuple_set_.begin(), tuple_set_.end(), [&](const Tuple *x, const Tuple *y) {
