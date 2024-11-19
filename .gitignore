@@ -363,3 +363,5 @@ deps/3rd
 ############# test #############
 test/tmp
 test/var
+deps/oblib/src/lib/vector/vsag_lib/mockimpl/vsag/version.h
+deps/oblib/src/lib/vector/vsag_lib/src/version.h

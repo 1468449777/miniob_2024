@@ -191,6 +191,7 @@ int create_index(VectorIndexPtr& index_handler, IndexType index_type,
                  const char* metric, int dim,
                  int max_degree, int ef_construction, int ef_search, void* allocator)
 {   
+
     vsag::logger::debug("TRACE LOG[test_create_index]:");
     vsag::ErrorType error = vsag::ErrorType::UNKNOWN_ERROR;
     int ret = 0;
@@ -313,6 +314,10 @@ int get_index_number(VectorIndexPtr& index_handler, int64_t &size) {
 int knn_search(VectorIndexPtr& index_handler,float* query_vector,int dim, int64_t topk,
                const float*& dist, const int64_t*& ids, int64_t &result_size, int ef_search,
                void* invalid) {
+    ef_search = 150;
+    // std::ofstream idx_file("/data/hnsw.index", std::ios::app | std::ios::binary);
+    // idx_file << "ef_search : " << ef_search << std::endl;
+    // idx_file.close();
     vsag::logger::debug("TRACE LOG[knn_search]:");
     vsag::ErrorType error = vsag::ErrorType::UNKNOWN_ERROR;
     int ret = 0;
