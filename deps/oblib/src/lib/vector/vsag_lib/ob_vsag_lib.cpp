@@ -314,7 +314,7 @@ int get_index_number(VectorIndexPtr& index_handler, int64_t &size) {
 int knn_search(VectorIndexPtr& index_handler,float* query_vector,int dim, int64_t topk,
                const float*& dist, const int64_t*& ids, int64_t &result_size, int ef_search,
                void* invalid) {
-    ef_search = 150;
+    ef_search = 130;
     // std::ofstream idx_file("/data/hnsw.index", std::ios::app | std::ios::binary);
     // idx_file << "ef_search : " << ef_search << std::endl;
     // idx_file.close();
