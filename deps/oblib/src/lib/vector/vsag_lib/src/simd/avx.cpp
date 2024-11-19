@@ -26,72 +26,72 @@ namespace vsag {
 
 float
 L2SqrSIMD16ExtAVX(const void* pVect1v, const void* pVect2v, const void* qty_ptr) {
-    // float* pVect1 = (float*)pVect1v;
-    // float* pVect2 = (float*)pVect2v;
-    // size_t qty = *((size_t*)qty_ptr);
-    // float PORTABLE_ALIGN32 TmpRes[8];
-    // size_t qty16 = qty >> 4;
-
-    // const float* pEnd1 = pVect1 + (qty16 << 4);
-
-    // __m256 diff, v1, v2;
-    // __m256 sum = _mm256_set1_ps(0);
-
-    // while (pVect1 < pEnd1) {
-    //     v1 = _mm256_loadu_ps(pVect1);
-    //     pVect1 += 8;
-    //     v2 = _mm256_loadu_ps(pVect2);
-    //     pVect2 += 8;
-    //     diff = _mm256_sub_ps(v1, v2);
-    //     sum = _mm256_add_ps(sum, _mm256_mul_ps(diff, diff));
-
-    //     v1 = _mm256_loadu_ps(pVect1);
-    //     pVect1 += 8;
-    //     v2 = _mm256_loadu_ps(pVect2);
-    //     pVect2 += 8;
-    //     diff = _mm256_sub_ps(v1, v2);
-    //     sum = _mm256_add_ps(sum, _mm256_mul_ps(diff, diff));
-    // }
-
-    // _mm256_store_ps(TmpRes, sum);
-    // return TmpRes[0] + TmpRes[1] + TmpRes[2] + TmpRes[3] + TmpRes[4] + TmpRes[5] + TmpRes[6] +
-    //        TmpRes[7];
-     float* pVect1 = (float*)pVect1v;
+    float* pVect1 = (float*)pVect1v;
     float* pVect2 = (float*)pVect2v;
     size_t qty = *((size_t*)qty_ptr);
+    float PORTABLE_ALIGN32 TmpRes[8];
     size_t qty16 = qty >> 4;
 
-    float result = 0.0f;
+    const float* pEnd1 = pVect1 + (qty16 << 4);
 
-    #pragma omp parallel
-    {
-        __m256 diff, v1, v2;
-        __m256 sum = _mm256_set1_ps(0);
+    __m256 diff, v1, v2;
+    __m256 sum = _mm256_set1_ps(0);
 
-        #pragma omp for
-        for (size_t i = 0; i < qty16 * 16; i += 16) {
-            v1 = _mm256_loadu_ps(pVect1 + i);
-            v2 = _mm256_loadu_ps(pVect2 + i);
-            diff = _mm256_sub_ps(v1, v2);
-            sum = _mm256_fmadd_ps(diff, diff, sum);
+    while (pVect1 < pEnd1) {
+        v1 = _mm256_loadu_ps(pVect1);
+        pVect1 += 8;
+        v2 = _mm256_loadu_ps(pVect2);
+        pVect2 += 8;
+        diff = _mm256_sub_ps(v1, v2);
+        sum = _mm256_add_ps(sum, _mm256_mul_ps(diff, diff));
 
-            v1 = _mm256_loadu_ps(pVect1 + i + 8);
-            v2 = _mm256_loadu_ps(pVect2 + i + 8);
-            diff = _mm256_sub_ps(v1, v2);
-            sum = _mm256_fmadd_ps(diff, diff, sum);
-        }
-
-        float partialResult[8];
-        _mm256_store_ps(partialResult, sum);
-
-        float threadSum = partialResult[0] + partialResult[1] + partialResult[2] + partialResult[3] +
-                          partialResult[4] + partialResult[5] + partialResult[6] + partialResult[7];
-
-        #pragma omp atomic
-        result += threadSum;
+        v1 = _mm256_loadu_ps(pVect1);
+        pVect1 += 8;
+        v2 = _mm256_loadu_ps(pVect2);
+        pVect2 += 8;
+        diff = _mm256_sub_ps(v1, v2);
+        sum = _mm256_add_ps(sum, _mm256_mul_ps(diff, diff));
     }
 
-    return result;
+    _mm256_store_ps(TmpRes, sum);
+    return TmpRes[0] + TmpRes[1] + TmpRes[2] + TmpRes[3] + TmpRes[4] + TmpRes[5] + TmpRes[6] +
+           TmpRes[7];
+    //  float* pVect1 = (float*)pVect1v;
+    // float* pVect2 = (float*)pVect2v;
+    // size_t qty = *((size_t*)qty_ptr);
+    // size_t qty16 = qty >> 4;
+
+    // float result = 0.0f;
+
+    // #pragma omp parallel
+    // {
+    //     __m256 diff, v1, v2;
+    //     __m256 sum = _mm256_set1_ps(0);
+
+    //     #pragma omp for
+    //     for (size_t i = 0; i < qty16 * 16; i += 16) {
+    //         v1 = _mm256_loadu_ps(pVect1 + i);
+    //         v2 = _mm256_loadu_ps(pVect2 + i);
+    //         diff = _mm256_sub_ps(v1, v2);
+    //         sum = _mm256_fmadd_ps(diff, diff, sum);
+
+    //         v1 = _mm256_loadu_ps(pVect1 + i + 8);
+    //         v2 = _mm256_loadu_ps(pVect2 + i + 8);
+    //         diff = _mm256_sub_ps(v1, v2);
+    //         sum = _mm256_fmadd_ps(diff, diff, sum);
+    //     }
+
+    //     float partialResult[8];
+    //     _mm256_store_ps(partialResult, sum);
+
+    //     float threadSum = partialResult[0] + partialResult[1] + partialResult[2] + partialResult[3] +
+    //                       partialResult[4] + partialResult[5] + partialResult[6] + partialResult[7];
+
+    //     #pragma omp atomic
+    //     result += threadSum;
+    // }
+
+    // return result;
 }
 
 float
