@@ -38,6 +38,8 @@
 #include "vsag/index.h"
 #include "vsag/readerset.h"
 
+
+#define PARALLEL_LEVEL 4
 namespace vsag {
 class BitsetOrCallbackFilter : public hnswlib::BaseFilterFunctor {
 public:
@@ -77,8 +79,12 @@ public:
          Allocator* allocator = nullptr);
 
     virtual ~HNSW() {
-        alg_hnsw = nullptr;
+        // alg_hnsw = nullptr;
         allocator_.reset();
+        for (int i = 0; i < PARALLEL_LEVEL; i++) {
+            alg_hnsws[i] = nullptr;
+            // allocators_[i].reset();
+        }
     }
 
 public:
@@ -159,7 +165,8 @@ public:
 
     virtual tl::expected<float, Error>
     CalcDistanceById(const float* vector, int64_t id) const override {
-        SAFE_CALL(return alg_hnsw->getDistanceByLabel(id, vector));
+        int index = id2idx_.at(id);
+        SAFE_CALL(return alg_hnsws[index]->getDistanceByLabel(id, vector));
     };
 
 public:
@@ -191,15 +198,33 @@ public:
 public:
     int64_t
     GetNumElements() const override {
-        return alg_hnsw->getCurrentElementCount() - alg_hnsw->getDeletedCount();
+        int64_t count = 0;
+        for (int i = 0; i < PARALLEL_LEVEL; i++) {
+            count += (alg_hnsws[i]->getCurrentElementCount() - alg_hnsws[i]->getDeletedCount());
+        }
+        // return alg_hnsw->getCurrentElementCount() - alg_hnsw->getDeletedCount();
+        return count;
     }
 
     int64_t
     GetMemoryUsage() const override {
-        if (use_conjugate_graph_)
-            return alg_hnsw->calcSerializeSize() + conjugate_graph_->GetMemoryUsage();
-        else
-            return alg_hnsw->calcSerializeSize();
+        int64_t usage = 0;
+        // if (use_conjugate_graph_)
+        //     return alg_hnsw->calcSerializeSize() + conjugate_graph_->GetMemoryUsage();
+        // else
+        //     return alg_hnsw->calcSerializeSize();
+
+        if (use_conjugate_graph_) {
+            for (int i = 0; i < PARALLEL_LEVEL; i++) {
+                usage += alg_hnsws[i]->calcSerializeSize() + conjugate_graphs_[i]->GetMemoryUsage();
+            }
+        }
+        else {
+            for (int i = 0; i < PARALLEL_LEVEL; i++) {
+                usage += alg_hnsws[i]->calcSerializeSize();
+            }
+        }
+        return usage;
     }
 
     std::string
@@ -284,12 +309,14 @@ private:
     empty_binaryset() const;
 
 private:
-    std::shared_ptr<hnswlib::AlgorithmInterface<float>> alg_hnsw;
+    // std::shared_ptr<hnswlib::AlgorithmInterface<float>> alg_hnsw;
+    std::shared_ptr<hnswlib::AlgorithmInterface<float>>  alg_hnsws[PARALLEL_LEVEL];
+    // std::shared_ptr<SafeAllocator> allocators_[PARALLEL_LEVEL];
     std::shared_ptr<hnswlib::SpaceInterface> space;
 
     bool use_conjugate_graph_;
-    std::shared_ptr<ConjugateGraph> conjugate_graph_;
-
+    // std::shared_ptr<ConjugateGraph> conjugate_graph_;
+    std::shared_ptr<ConjugateGraph> conjugate_graphs_[PARALLEL_LEVEL];
     int64_t dim_;
     bool use_static_ = false;
     bool empty_index_ = false;
@@ -302,6 +329,9 @@ private:
     mutable std::map<std::string, WindowResultQueue> result_queues_;
 
     mutable std::shared_mutex rw_mutex_;
+    std::atomic<int> last_add_{0};
+    std::unordered_map<int64_t, int> id2idx_;
+    // std::mutex rel_mu_;
 };
 
 }  // namespace vsag
